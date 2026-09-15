@@ -1,0 +1,94 @@
+{
+  "objects": [
+    {
+      "type": "Analog Input",
+      "instance": 1,
+      "name": "Bronze",
+      "app": ["Present_Value", "Object_Name", "Units", "Out_Of_Service"],
+      "enabled": [],
+      "writable": [],
+      "accepted": ["Event_State"],
+      "note": "REAL, degrees Celsius; starts at 21.5. F-COVM: Present_Value AND Status_Flags are both marked subscribable (SetPropertySubscribable), so a SubscribeCOVPropertyMultiple naming both fires one multi-property notification when the up/down keys nudge this value"
+    },
+    {
+      "type": "Binary Input",
+      "instance": 1,
+      "name": "Emerald",
+      "app": ["Present_Value", "Object_Name", "Polarity", "Out_Of_Service"],
+      "enabled": [],
+      "writable": [],
+      "accepted": ["Event_State"],
+      "note": "starts inactive"
+    },
+    {
+      "type": "Multi-state Input",
+      "instance": 1,
+      "name": "Hot Pink",
+      "app": ["Present_Value", "Object_Name", "Number_Of_States", "Out_Of_Service", "State_Text"],
+      "enabled": ["State_Text"],
+      "writable": [],
+      "accepted": ["Event_State"],
+      "note": "state 1 of 3: On, Off, Auto"
+    },
+    {
+      "type": "Network Port",
+      "instance": 1,
+      "name": "Vermilion",
+      "app": ["Object_Name", "Out_Of_Service", "Network_Type", "Protocol_Level", "Changes_Pending"],
+      "enabled": [],
+      "writable": [],
+      "accepted": ["Reliability"],
+      "note": "BACnet/IP; Network_Type and Protocol_Level are set from BACnetStack_AddNetworkPortObject()'s arguments (IPv4, BACnet Application) at start-up, not a GetProperty callback like the object's other app-served rows; Changes_Pending is likewise computed and answered natively by the stack's Network Port object. Reliability has no fault condition this example detects, so it is accepted at the generic default (normal)"
+    },
+    {
+      "type": "Elevator Group",
+      "instance": 1,
+      "name": "Maroon",
+      "app": ["Object_Name"],
+      "enabled": [],
+      "writable": [],
+      "accepted": ["Machine_Room_ID", "Group_ID", "Group_Members"],
+      "note": "F-ELEVATOR (canonical). Machine_Room_ID, Group_ID and Group_Members are NOT stack DEFAULTS - they are genuinely stored and served by BACnetStack_AddElevatorGroupObject (Group_Members is also maintained by BACnetStack_AddLiftOrEscalatorObject as Lift 1/Mauve is added to this group). They are marked accepted only because property-profile-reference.md's generic per-type table does not know about this object-specific host-configuration API and so cannot credit them as stack-served. isGroupOfLifts=true and supportLandingCallStatus=true: Group_Mode and LandingCalls are therefore also enabled (see the Lift's note for how the four F-ELEVATOR list/sequence callbacks are exercised) but property-profile-reference.md's generic Elevator Group table does not mark either 'required', so neither generates a checked row here - Group_Mode is served by GetPropertyEnumerated (normal) and LandingCalls by GetListElevatorGroupLandingCallStatus (no calls outstanding) regardless"
+    },
+    {
+      "type": "Lift",
+      "instance": 1,
+      "name": "Mauve",
+      "app": ["Object_Name", "Car_Position", "Car_Moving_Direction", "Car_Door_Status", "Passenger_Alarm", "Out_Of_Service", "Fault_Signals"],
+      "enabled": [],
+      "writable": [],
+      "accepted": ["Status_Flags", "Elevator_Group", "Group_ID", "Installation_ID"],
+      "note": "F-ELEVATOR (canonical). property-profile-reference.md's generated Lift table is INCOMPLETE relative to CASBACnetStackDLL.h's own doc comment for BACnetStack_AddLiftOrEscalatorObject (a documentation gap in the stack repo, not a stack API gap): the markdown table omits Car_Position, Car_Moving_Direction, Car_Door_Status, Passenger_Alarm, Out_Of_Service and Fault_Signals entirely, even though the DLL header lists all six as REQUIRED Lift properties. This example serves every one of them regardless, because they are genuinely required by clause 12.59 - Car_Position and Car_Moving_Direction via GetPropertyUnsignedInteger/GetPropertyEnumerated, Car_Door_Status (one door, index 1) via GetPropertyEnumerated with useArrayIndex, Passenger_Alarm and Out_Of_Service via GetPropertyBool, Fault_Signals (empty - no active faults) via the GetListOfEnumerations callback. Status_Flags, Elevator_Group, Group_ID and Installation_ID ARE in the generic table (stack-computed/stack-stored) and are accepted for the same reason as Maroon's. Passenger_Alarm is the AE-N-I-B alarm source: an intrinsic ChangeOfState(bool) algorithm routed to Notification Class 1 (Crimson); it is not writable through any API in this stack (a real installation drives it from hardware), so this example simulates it on a 30-second timer rather than a key or a write - see the file header comment in main.cpp. Optional properties Assigned_Landing_Calls, Registered_Car_Call and Landing_Door_Status are enabled and each exercises one of the four F-ELEVATOR list/sequence callbacks with one demonstration entry"
+    },
+    {
+      "type": "Escalator",
+      "instance": 1,
+      "name": "Mint",
+      "app": ["Object_Name", "Operation_Direction", "Passenger_Alarm", "Out_Of_Service"],
+      "enabled": ["Power_Mode", "Escalator_Mode"],
+      "writable": [],
+      "accepted": ["Status_Flags", "Elevator_Group", "Group_ID", "Installation_ID"],
+      "note": "F-ELEVATOR. Not a member of Maroon (a group of Lifts, isGroupOfLifts=true) - added with the spec's 'no reference' sentinel (4194303) for Elevator_Group, as clause 12.60.6 allows. Required Operation_Direction (no stack default), Passenger_Alarm and Out_Of_Service are served by the app; the optional Power_Mode and Escalator_Mode are enabled and served too, for a fuller demonstration. Status_Flags/Elevator_Group/Group_ID/Installation_ID are stack-stored, same reasoning as Mauve's"
+    },
+    {
+      "type": "Positive Integer Value",
+      "instance": 1,
+      "name": "Turquoise",
+      "app": ["Present_Value", "Object_Name"],
+      "enabled": [],
+      "writable": [],
+      "accepted": ["Units", "Out_Of_Service"],
+      "note": "not one of the profile's named objects - added explicitly by this application, BEFORE Elevator Group 1 (Maroon), as the object Maroon's Machine_Room_ID references. BACnetStack_AddElevatorGroupObject's own doc comment reads as though the stack creates this object automatically if missing; verified against the running stack, it does not - AddElevatorGroupObject fails outright ('Create the Positive Integer Value object before adding the Elevator Group object') unless the application adds it first. Colour 'Turquoise' per docs/colour-table.md's global positive_integer_value mapping; Present_Value (required, no stack default) is served as an arbitrary plausible room id. Units defaults to no-units (accepted) since a machine-room identifier has none; Out_Of_Service is optional and left at the generic default"
+    },
+    {
+      "type": "Notification Class",
+      "instance": 1,
+      "name": "Crimson",
+      "app": ["Object_Name"],
+      "enabled": [],
+      "writable": [],
+      "accepted": ["Priority", "Ack_Required", "Recipient_List"],
+      "note": "AE-N-I-B / AE-ACK-B / AE-INFO-B. Priority, Ack_Required and Recipient_List are NOT stack DEFAULTS - they are genuinely populated by BACnetStack_AddNotificationClassObject (Priority, Ack_Required) and BACnetStack_AddRecipientToNotificationClass (Recipient_List) at start-up; marked accepted only because property-profile-reference.md's generic per-type table does not know about this object-specific host-configuration API. Unlike B-AAC (AE-CRL-B), Recipient_List is NOT made writable here - this profile has no AE-CRL-B requirement and B-EM accepts no WriteProperty of any kind"
+    }
+  ]
+}

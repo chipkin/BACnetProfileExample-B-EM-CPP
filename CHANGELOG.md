@@ -92,9 +92,8 @@ All notable changes to this project are documented in this file.
   "failed to get the size of the array"` server-side and `Abort(other)` on the
   wire.
 - Not independently wire-verified this session: SubscribeCOVPropertyMultiple
-  end-to-end (neither `bacpypes3` 0.0.106 nor `BAC0` implement a
-  SubscribeCOVPropertyMultipleRequest APDU - `bacpypes3/apdu.py` marks
-  `subscribeCOVPropertyMultiple = 30 ###TODO`) and AcknowledgeAlarm (the
+  end-to-end (the client library available in this session did not implement
+  a SubscribeCOVPropertyMultipleRequest APDU) and AcknowledgeAlarm (the
   service enables without error and the callback matches B-AAC's already
   wire-verified implementation byte-for-byte, but was not independently
   exercised on the wire). See the PR description for the full verification

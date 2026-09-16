@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **Documentation restructure**, matching `BACnetProfileExample-B-SS-CPP`:
+  `README.md` is cut down to this example only (device tree, BIBBs/services/
+  object types, licensed-stack notice, prerequisites, build, run, verify,
+  footprint, series table, references); the extending/reviewing material and
+  the silent-failure warnings moved to a new `TUTORIAL.md`; a new
+  `docs/PICS.md` (ANSI/ASHRAE 135 Annex A shape) replaced the README's inline
+  "Objects and properties" section, with the application-services section
+  spelling out that WriteProperty/WPM are not enabled. `docs/objects.json`
+  gained a Device object entry (previously the generated tables omitted the
+  Device object entirely); regenerating produces zero ⚠ rows.
+- **Build switched from a prebuilt STATIC library to the adapter's default
+  SOURCE mode**, matching every other repo in the series that has completed
+  this restructure: `cmake -B build -S .` / `cmake --build build --config
+  Release`, with no `tools/build-stack-static.sh` step and no
+  `-DCAS_BACNET_STACK_LINK=STATIC` flag. `CMakeLists.txt`'s header comment,
+  `AGENTS.md`, and `.github/workflows/release.yml` (drops the static-library
+  cache/build steps and the matrix `lib:` entries, asserts `SOURCE` instead of
+  `STATIC`, and packages `TUTORIAL.md` + `docs/PICS.md` into the release
+  artifact) were all updated to match. The Footprint table's numbers were
+  measured from the old STATIC build; the next release remeasures them under
+  the documented SOURCE build.
+- `main.cpp`'s `CHANGE ALL OF THIS BEFORE YOU SHIP` block absorbed the
+  per-field guidance that used to live in the README's ship-checklist table,
+  including the `DEVICE_NAME` uniqueness warning.
+
 ## [1.0.0] - 2026-09-15
 
 ### Added

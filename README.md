@@ -11,14 +11,19 @@ answers **ReadProperty / ReadPropertyMultiple**, supports **SubscribeCOV** and
 WriteProperty, WritePropertyMultiple, Schedule, ReinitializeDevice or
 TimeSynchronization of any kind**.
 
-Part of the CAS BACnet Stack **BACnet profile example series** - one repository
-per BACnet device profile. This example claims **only** B-EM.
+**[Download a prebuilt binary](https://github.com/chipkin/BACnetProfileExample-B-EM-CPP/releases)**
+(Windows and Linux x64) - or build it yourself, see [Build](#build) below.
+
+- **[TUTORIAL.md](TUTORIAL.md)** - how to extend this example and how to review
+  it for conformance. Read it when you start turning this into your own device.
+- **[docs/PICS.md](docs/PICS.md)** - the Protocol Implementation Conformance
+  Statement: every object, every property, and who answers it.
 
 > **Versions:** this document describes **example v1.0.0**, built and verified
-> against **CAS BACnet Stack 6.0.21 (`6.x` @ `abd4cee1`)**, linked as a static
-> library, at **Protocol_Revision 24**, with the vendored `common/` helper at
-> **v2.5.0**. Running the example prints all three - if what it prints disagrees
-> with this line, trust the program and check `CHANGELOG.md`.
+> against **CAS BACnet Stack 6.0.21** (`6.x` @ `abd4cee1`), at
+> **Protocol_Revision 24**, with the vendored `common/` helper at **v2.5.0**.
+> Running the example prints all three - if what it prints disagrees with this
+> line, trust the program and check `CHANGELOG.md`.
 
 This example is also the series' **canonical source** for two shared feature
 blocks later repos copy byte-for-byte: **F-COVM** (SubscribeCOVPropertyMultiple)
@@ -27,32 +32,59 @@ and **F-ELEVATOR** (the Elevator Group / Lift / Escalator object family).
 *Controller*, not just a monitor) seeds from this repository and adds writes
 back for the lift's commandable pieces.
 
-## What is a B-EM (Elevator Monitor) profile?
+## What this example supports
 
-A **device profile** (ANSI/ASHRAE 135, Annex L) lists the capabilities a class
-of device must support. A **B-EM** (Annex L.13) is a **monitor**: it reports
-what an elevator installation (lifts, escalators, the group that coordinates
-them) is doing, with COV and alarms, but issues and accepts no commands. (New
-to BACnet? See Chipkin's
-[What is BACnet?](https://docs.chipkin.com/protocols/bacnet/) guide.)
+The example implements exactly the capabilities below - and nothing more,
+which is the point of a profile example.
 
-**What the profile requires** (and where this example stands):
+### BIBBs (BACnet Interoperability Building Blocks)
 
-| Requirement | BIBB | This example |
-|---|---|:--:|
-| ReadProperty | DS-RP-B | ✅ |
-| ReadPropertyMultiple | DS-RPM-B | ✅ |
-| SubscribeCOV | DS-COV-B | ✅ |
-| SubscribeCOVPropertyMultiple | DS-COVM-B | ✅ (canonical - F-COVM) |
-| Generate event notifications | AE-N-I-B | ✅ (intrinsic ChangeOfState on the Lift's Passenger_Alarm) |
-| Accept AcknowledgeAlarm | AE-ACK-B | ✅ |
-| Answer GetEventInformation | AE-INFO-B | ✅ |
-| DeviceCommunicationControl | DM-DCC-B | ✅ |
-| Who-Is/I-Am (answer), Who-Has/I-Have | DM-DDB-B, DM-DOB-B | ✅ |
+| BIBB | Description | Supported |
+|------|-------------|:---------:|
+| DS-RP-B | Data Sharing - ReadProperty - B | ✅ |
+| DS-RPM-B | Data Sharing - ReadPropertyMultiple - B | ✅ |
+| DS-COV-B | Data Sharing - COV - B | ✅ |
+| DS-COVM-B | Data Sharing - COV-Property-Multiple - B | ✅ (canonical - F-COVM) |
+| AE-N-I-B | Alarm and Event - Notification Internal - B | ✅ (intrinsic ChangeOfState on the Lift's Passenger_Alarm) |
+| AE-ACK-B | Alarm and Event - ACK - B | ✅ |
+| AE-INFO-B | Alarm and Event - Information - B | ✅ |
+| DM-DCC-B | Device Management - Device Communication Control - B | ✅ |
+| DM-DDB-B | Device Management - Dynamic Device Binding - B | ✅ (answer only) |
+| DM-DOB-B | Device Management - Dynamic Object Binding - B | ✅ |
 
 No WriteProperty, WritePropertyMultiple, Schedule, ReinitializeDevice or
-TimeSynchronization BIBB is in this profile, and none is implemented - a B-EM
-is deliberately read-only.
+TimeSynchronization BIBB is in this profile, and **none is implemented** - a
+B-EM is deliberately read-only. See [docs/PICS.md](docs/PICS.md) for the full
+statement, including which services are explicitly *not* enabled.
+
+### Services (executed / B-side)
+
+| Service | Notes |
+|---------|-------|
+| ReadProperty, ReadPropertyMultiple | Responds to property reads (DS-RP-B, DS-RPM-B). |
+| SubscribeCOV, SubscribeCOVPropertyMultiple | Plain COV plus multi-property COV (DS-COV-B, DS-COVM-B - see F-COVM below). |
+| Who-Is / I-Am, Who-Has / I-Have | Answers discovery requests (DM-DDB-B, DM-DOB-B). This device does not initiate its own Who-Is on start-up (no DM-DDB-A), but it does send an I-Am. |
+| DeviceCommunicationControl | Accepts enable / disable-initiation, with an optional password (DM-DCC-B). |
+| AcknowledgeAlarm, GetEventInformation | Accepts alarm acknowledgement and answers event-status queries (AE-ACK-B, AE-INFO-B). |
+| (Unconfirmed/Confirmed)EventNotification | Sent when the Lift's intrinsic ChangeOfState algorithm fires (AE-N-I-B). |
+
+### Object types
+
+| Object type | Instance | Name |
+|-------------|:--------:|------|
+| Device | 389015 | Rainbow |
+| Analog Input | 1 | Bronze |
+| Binary Input | 1 | Emerald |
+| Multi-State Input | 1 | Hot Pink |
+| Network Port | 1 | Vermilion |
+| Elevator Group | 1 | Maroon |
+| Lift | 1 | Mauve |
+| Escalator | 1 | Mint |
+| Positive Integer Value | 1 | Turquoise |
+| Notification Class | 1 | Crimson |
+
+Every required property of every object, and who answers it, is in
+[docs/PICS.md](docs/PICS.md).
 
 ## F-COVM: SubscribeCOVPropertyMultiple (the headline B-EM capability)
 
@@ -64,7 +96,7 @@ gets **one multi-property notification** whenever Bronze's value changes -
 nudge it with the up/down keys and watch. A plain SubscribeCOV on Bronze still
 works too (DS-COV-B): `SetPropertySubscribable` is not required for a standard
 object type's `Present_Value`, only for a second property or COVProperty on any
-property (see the doc comment on `BACnetStack_SetPropertySubscribable`).
+property.
 
 ## F-ELEVATOR: the elevator object family
 
@@ -73,23 +105,17 @@ true`); **Escalator 1 "Mint"** is not a Lift, so it is added with the spec's
 "no reference" sentinel instead of belonging to Maroon. Adding Maroon also
 requires **Positive Integer Value 1 "Turquoise"** to exist first - this example
 adds it explicitly, before Maroon, as the object Maroon's `Machine_Room_ID`
-names. (`BACnetStack_AddElevatorGroupObject`'s own doc comment reads as though
-the stack creates it automatically; measured against the running stack, it
-does not - see AGENTS.md.)
+names (the stack's own doc comment on `BACnetStack_AddElevatorGroupObject`
+reads as though the stack creates it automatically; measured against the
+running stack, it does not).
 
 The stack stores only a handful of each elevator object's properties
 (`Object_Identifier`, `Group_ID`, `Installation_ID`, `Group_Members`, ...);
 everything else - including several properties this profile treats as
 required - comes from four callbacks this example registers, each paging
-through a list- or array-shaped property one element at a time:
-
-| Callback | Serves | Demonstrated on |
-|---|---|---|
-| `GetListOfEnumerations` | `Fault_Signals` (Lift, required) | Mauve - reports no active faults |
-| `GetListElevatorGroupLandingCallStatus` | `Landing_Calls` (Elevator Group, optional - enabled) | Maroon - reports no calls outstanding |
-| `GetSequenceLiftAssignedLandingCall` | `Assigned_Landing_Calls` (Lift, optional - enabled) | Mauve - one call, floor 5, direction up |
-| `GetSequenceLiftRegisteredCarCall` | `Registered_Car_Call` (Lift, optional - enabled) | Mauve - one call, floor 5 |
-| `GetSequenceLiftLandingDoorStatus` | `Landing_Door_Status` (Lift, optional - enabled) | Mauve - floor 3 (the car's current position), door closed |
+through a list- or array-shaped property one element at a time. See
+[TUTORIAL.md](TUTORIAL.md#who-serves-what-lift-1-mauve) for the full
+served-by breakdown.
 
 A **fifth** elevator callback exists in the stack -
 `RegisterCallbackSetElevatorGroupLandingCallControl`, which would accept a
@@ -97,13 +123,6 @@ client's landing-call *command* - and this example **deliberately does not
 register it**. That single omission is what keeps `Landing_Call_Control`
 non-writable and is part of how this device guarantees it accepts no command
 of any kind.
-
-`docs/property-profile-reference.md`'s generated Lift table is **incomplete**
-relative to the properties `CASBACnetStackDLL.h`'s own doc comment documents as
-required (a documentation gap in the stack repository, not an API gap) - this
-example serves `Car_Position`, `Car_Moving_Direction`, `Car_Door_Status`,
-`Passenger_Alarm`, `Out_Of_Service` and `Fault_Signals` regardless, because
-clause 12.59 genuinely requires them. See `docs/objects.json`'s notes for detail.
 
 ## Intrinsic alarming: the Lift's Passenger_Alarm
 
@@ -139,132 +158,147 @@ The three inputs plus the Network Port are the series' shared minimum;
 **Maroon, Mauve, Mint, Turquoise and Crimson are the B-EM additions**. Object
 names follow the series' colour convention (Device is always "Rainbow").
 
-## What this example does NOT do
-
-Nothing. Every BIBB B-EM requires is implemented against the pinned stack; no
-`TODO.md` gap exists. (The generated Lift table's documentation gap described
-under F-ELEVATOR above is not a functional gap - this example serves every
-genuinely required property regardless.)
-
-## Before you ship
-
-This example is a tutorial, and it identifies itself as one. Everything in this
-table is read by clients and shown to the operator in **every discovery tool on
-the network**. Left as-is, your product appears on a real site announcing itself
-as a Chipkin demo. None of it is cosmetic.
-
-| Constant (`main.cpp`) | Ships as | Change it to |
-|---|---|---|
-| `VENDOR_IDENTIFIER` | `389` (Chipkin) | **Your** company's vendor ID. Assigned by ASHRAE, free: <https://bacnet.org/assigned-vendor-ids/> |
-| `VENDOR_NAME` | `Chipkin Automation Systems` | Your company name - must match the vendor ID above. |
-| `DEVICE_NAME` | `"Rainbow"` | Your device's `Object_Name`. **Must be unique across the BACnet internetwork.** |
-| `MODEL_NAME` | `CAS BACnet Stack Example - B-EM` | Your model designation - what a building operator reads to identify your device. |
-| `DEVICE_DESCRIPTION` | a description of *this example* | What your device actually is. |
-| `FIRMWARE_REVISION` / `APPLICATION_SOFTWARE_VERSION` | `1.0.0` | Your real versions - wire them to your build. |
-| `DCC_PASSWORD` | `""` (no password) | Set your device's secret, or leave empty to accept any DeviceCommunicationControl. It crosses the wire in **plaintext** - a guard against accidents, not a security boundary. |
-| Device instance | `389015` (`--deviceID` overrides) | Must be unique on the internetwork. BACnet requires this to be configurable; keep it so. |
-
-`main.cpp` marks this block with a `CHANGE ALL OF THIS BEFORE YOU SHIP` banner.
-
-## Extending the example: read-only means read-only
-
-If you copy this file as the seed for a *writable* elevator profile (as B-EC
-does), the single most important thing to preserve is what is **absent**: there
-is no `BACnetStack_RegisterCallbackSetProperty*` call anywhere in `main.cpp`,
-`SERVICE_WRITE_PROPERTY`/`SERVICE_WRITE_PROPERTY_MULTIPLE` are never enabled,
-and `RegisterCallbackSetElevatorGroupLandingCallControl` is never registered.
-Adding writes back is exactly the set of things you add, not things you remove.
-
-### Adding an object - read this first
-
-Adding an object is the easiest place to ship a silent non-conformance. The
-callbacks are **not uniformly strict**: a Get callback returning `false` does
-**not** reliably produce an error for most properties - the stack **silently
-substitutes a default** (`Object_Name` -> `"undefined"`, `Units` -> `no-units`,
-otherwise a datatype zero) while `Property_List` still advertises the
-property. The Lift/Escalator properties this stack refuses to default
-(`Car_Position`, `Car_Moving_Direction`, `Car_Door_Status`, `Passenger_Alarm`,
-`Operation_Direction`) are the exception - those fail loudly
-(`value-not-initialized`) if unserved, which is actually the safer failure
-mode; `Out_Of_Service` on the same objects is not, and silently reports
-`false`.
-
-So a half-added object looks **healthy** on a scan and is non-conformant. When
-you add an instance: add its constant, `BACnetStack_AddObject` (or
-`AddLiftOrEscalatorObject`/`AddElevatorGroupObject`) it, serve every required
-property in the Get callbacks, then **read back every required property and
-diff it against a working object**. "It scanned OK" is the failure mode, not
-evidence against it. The block comment above the Get callbacks in `main.cpp`
-("ADDING AN OBJECT? READ THIS FIRST") is the in-code version of this.
-
 ## Requires the CAS BACnet Stack (licensed product)
 
-This example **builds against the CAS BACnet Stack, a commercial Chipkin product** -
-not free or open source, no public/trial build. The stack is the **private** git
-submodule `submodules/cas-bacnet-stack`; you can only fetch and build it with a CAS
-BACnet Stack license. **To get the stack, contact Chipkin:**
-<https://store.chipkin.com/services/stacks/bacnet-stack> or sales@chipkin.com. You
-do not need a stack licence to *read* this example's own source: every file outside
-submodules/ is CC0 public domain. The licence is what lets you *build* it.
+This example **builds against the CAS BACnet Stack, which is a commercial Chipkin
+product** - it is not free or open source, and there is no public/trial build.
+The stack is referenced here as the **private** git submodule
+`submodules/cas-bacnet-stack`; you can only fetch and build it once you have a CAS
+BACnet Stack license and access to that repository.
+
+**To get the CAS BACnet Stack (and access to build this example), contact
+Chipkin:** <https://store.chipkin.com/services/stacks/bacnet-stack> or
+sales@chipkin.com.
+
+You do not need a stack licence to *read* this example, or to run a
+[prebuilt release binary](https://github.com/chipkin/BACnetProfileExample-B-EM-CPP/releases).
+The licence is what lets you *build* it - that is the part the stack submodule
+gates.
+
+## What's in this repository
+
+This is a **self-contained** project. It ships:
+
+- `main.cpp` - the example device.
+- `common/` - the shared helper (UDP, callbacks, CLI, keyboard) vendored in.
+- `CMakeLists.txt` - the build, the same on Windows, Linux, and macOS.
+- `docs/PICS.md` - the conformance statement.
+- `submodules/cas-bacnet-stack/` - the **CAS BACnet Stack as a git submodule**
+  (private; requires a license - see above). Its sources are compiled into the
+  executable, so there is no library or DLL to build, ship, or install.
+
+## Prerequisites
+
+- A C++17 compiler (MSVC, GCC, or Clang).
+- CMake >= 3.15.
+- Git (to fetch the stack submodule).
+
+### Windows
+
+- **C++ compiler** - install
+  [Visual Studio Community](https://visualstudio.microsoft.com/downloads/)
+  (free) and select the **"Desktop development with C++"** workload.
+- **CMake** - from <https://cmake.org/download/>, or `winget install Kitware.CMake`.
+
+### Linux / macOS
+
+- Debian/Ubuntu: `sudo apt install build-essential cmake git`
+- macOS: `xcode-select --install` and `brew install cmake`
 
 ## Build
 
-This example links the CAS BACnet Stack as a prebuilt **STATIC** library. Build
-the library once from the pinned submodule commit, then configure and build the
-example against it:
+CMake only, and the same two commands on every platform:
 
 ```bash
 git clone --recursive https://github.com/chipkin/BACnetProfileExample-B-EM-CPP.git
 cd BACnetProfileExample-B-EM-CPP
-git submodule update --init --recursive   # if not cloned with --recursive
-tools/build-stack-static.sh BACnetProfileExample-B-EM-CPP   # from the series root; builds
-                                                              # submodules/cas-bacnet-stack/bin/...
-cmake -B build -S . -DCAS_BACNET_STACK_LINK=STATIC
+
+cmake -B build -S .
 cmake --build build --config Release
-./build/BACnetExampleBEM            # Linux/macOS
-.\build\Release\BACnetExampleBEM.exe   # Windows
 ```
 
-> **The stack library build takes a few minutes** the first time - it compiles
-> the entire CAS BACnet Stack (~600 source files) once, via the stack's own
-> project files (`msbuild` on Windows, `make` on Linux). The example itself
-> (`main.cpp` + `common/`) then builds in seconds against that library, and
-> rebuilds after that are incremental.
+Already cloned without `--recursive`? Run `git submodule update --init --recursive`
+first - the build needs the stack submodule.
 
-Use `-D CAS_STACK_DIR=/path` to point at a stack elsewhere. Options: `--port <n>`
-(default 47808), `--deviceID <n>` (default 389015), `--help` (show usage and exit),
-`--version` (print the example, stack, and `common/` versions and exit).
-Interactive keys: `h` help, `q` quit, up/down nudge Analog Input 1 (also the
-F-COVM demonstration). There is no other key - this device has no writable
-property and its alarm is simulated on a timer, not a command.
+> **The first build takes a few minutes** - it compiles the entire CAS BACnet
+> Stack (~600 source files) into the executable. Rebuilds after that are
+> incremental and take seconds.
 
-### Link mode
+If your CAS BACnet Stack lives somewhere other than the bundled submodule, point
+CMake at it: `cmake -B build -S . -D CAS_STACK_DIR=/path/to/cas-bacnet-stack`.
 
-This example links the stack through the `CASBACnetStack::Adapter` CMake target
-(`submodules/cas-bacnet-stack/adapters/cpp`) in **STATIC** mode -
-`-DCAS_BACNET_STACK_LINK=STATIC` links the prebuilt
-`CASBACnetStack_x64_Release.lib` / `libCASBACnetStack_x64_Release.a` built by
-`tools/build-stack-static.sh` above. **Application code is identical
-regardless of link mode** - `main.cpp` and `common/` call `BACnetStack_AddDevice(...)`
-and friends by the exact export name. Every mode requires calling
-`LoadBACnetFunctions()` once at the top of `main()` before any other
-`BACnetStack_*` call, which runs a version handshake; if it fails,
-`CASBACnetStackAdapter_LastError()` says why and the program exits with a
-message rather than crashing.
+## Run
 
-The adapter also offers a **SOURCE** mode (compiles the stack's `source/*.cpp`
-straight into the executable, no library build step) - this example is built
-and published in **STATIC** mode only.
+```bash
+# Linux / macOS
+./build/BACnetExampleBEM
+
+# Windows
+.\build\Release\BACnetExampleBEM.exe
+```
+
+Expected output:
+
+```
+BACnet B-EM (Elevator Monitor) Example - C++ v1.0.0
+CAS BACnet Stack version: 6.0.21.0
+Common helper (common/) version: 2.5.0
+FYI: Listening for BACnet/IP on UDP port 47808 (Network Port 1).
+TX 21 bytes to 192.168.3.255:47808 (broadcast) (Network Port 1)
+FYI: Device 389015 ("Rainbow") ready. Vendor ID 389. Read-only monitor - no WriteProperty of any kind is accepted. Press 'h' for help.
+```
+
+The `TX` line is the start-up I-Am the device broadcasts to announce itself -
+this profile requires only DM-DDB-B (answer Who-Is), but this example sends
+one anyway on start-up, exactly as every example in the series does. It goes
+to the **local subnet broadcast** address (here `192.168.3.255`, computed from
+the Network Port's interface), not the global `255.255.255.255`. As clients
+talk to the device you'll see `RX ... bytes from ...` and `TX ... bytes to ...`
+lines showing the traffic, and once every 30 seconds a
+`Simulated Passenger_Alarm on Lift 1 (Mauve): ACTIVE / cleared` line.
+
+The device listens on UDP **47808** (BACnet/IP). Allow that port through your
+firewall. To use a different port, pass `--port` (see below).
+
+> **A one-time red `Error:` line about a UUID at start-up is expected and is
+> not your bug** - it is the stack's own debug logging: a BACnet/SC datalink
+> this IP-only example never configures starts anyway and logs it once.
+> [TUTORIAL.md](TUTORIAL.md#troubleshooting) explains it.
+
+### Command-line options
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--port <n>` | `47808` | UDP port to listen on (BACnet/IP). |
+| `--deviceID <n>` | `389015` | The device's BACnet instance number (BACnet requires this to be configurable). |
+| `--help`, `-h` | - | Show usage and exit. |
+| `--version` | - | Print the example, stack, and `common/` helper versions, then exit. |
+
+### Interactive commands
+
+While the example runs, these keys are available:
+
+| Key | Action |
+|-----|--------|
+| `h` | Show the version information and this command list. |
+| `q` | Quit. |
+| up arrow | Increase Analog Input 1 (`Bronze`) by 1.1 (also the F-COVM demonstration). |
+| down arrow | Decrease Analog Input 1 (`Bronze`) by 1.1. |
+
+There is no other key - this device has no writable property, and the Lift's
+`Passenger_Alarm` alarm is simulated on a 30-second timer, not a command.
 
 ## Verify
 
-With the [CAS BACnet Explorer](https://store.chipkin.com/products/tools/cas-bacnet-explorer)
+With the
+[CAS BACnet Explorer](https://store.chipkin.com/products/tools/cas-bacnet-explorer)
 (or any client, e.g. `bacpypes3`/`BAC0`):
 
 1. **Discover** - Who-Is -> I-Am from `389015` (vendor `389`).
-2. **Object model** - nine objects incl. Elevator Group "Maroon", Lift "Mauve",
-   Escalator "Mint", Positive Integer Value "Turquoise" and Notification Class
-   "Crimson". `Object_List` lists them all; `Protocol_Revision` = 24.
+2. **Object model** - ten objects including the Elevator Group "Maroon", Lift
+   "Mauve", Escalator "Mint", Positive Integer Value "Turquoise" and
+   Notification Class "Crimson". `Object_List` lists them all;
+   `Protocol_Revision` is `24`.
 3. **Confirm NO write is accepted anywhere** - WriteProperty to any property of
    any object, and WritePropertyMultiple, are both rejected as an unsupported
    service.
@@ -283,249 +317,130 @@ With the [CAS BACnet Explorer](https://store.chipkin.com/products/tools/cas-bacn
 7. **Device management** - DeviceCommunicationControl `disable-initiation` /
    `enable` is accepted.
 
-## What's in this repository
+For a property-by-property review against the conformance statement, see
+[TUTORIAL.md](TUTORIAL.md).
 
-`main.cpp` (the example), `common/` (the vendored shared helper), and
-`submodules/cas-bacnet-stack/` (the CAS BACnet Stack as a private git submodule,
-compiled from source). Self-contained: clone with `--recursive` and build.
+## Footprint
 
-## Objects and properties
+Release-build sizes and start-up timing from release
+[v1.0.0](https://github.com/chipkin/BACnetProfileExample-B-EM-CPP/releases/tag/v1.0.0)
+(`metrics-windows.json` / `metrics-linux.json`):
 
-<!-- OBJECTS-PROPERTIES:BEGIN (generated by tools/gen-objects-properties.py from docs/objects.json - do not edit here) -->
-Every object this example creates, and every REQUIRED property of each (per ANSI/ASHRAE 135-2024 clause 12 and the stack's `docs/property-profile-reference.md`), plus the optional properties the example turns on. **Served by** says who answers a ReadProperty: the **stack** generates it, or the **app** serves it from a `GetProperty*` callback in `main.cpp`. A ⚠ row is a required property the app does not serve and the stack would fill with a default - that is a defect, not a feature.
+<!-- METRICS -->
+| Platform | Binary | Size | Start-up to `ready` | Stack commit |
+|---|---|---|---|---|
+| Windows x64 (windows-2022) | `BACnetExampleBEM.exe` | 3,400,192 bytes (~3.2 MiB) | 112 ms | `abd4cee1` |
+| Linux x64 (ubuntu-latest) | `BACnetExampleBEM` | 44,752 bytes (~44 KiB) | 110 ms | `abd4cee1` |
 
-### Analog Input 1 "Bronze" - REAL, degrees Celsius; starts at 21.5. F-COVM: Present_Value AND Status_Flags are both marked subscribable (SetPropertySubscribable), so a SubscribeCOVPropertyMultiple naming both fires one multi-property notification when the up/down keys nudge this value
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Present_Value | Real | app | no |
-| Status_Flags | BACnetStatusFlags | stack | no |
-| Event_State | BACnetEventState | stack default, accepted (Generic Enumerated default: `0`) | no |
-| Out_Of_Service | Boolean | app | no |
-| Units | BACnetEngineeringUnits | app | no |
-
-### Binary Input 1 "Emerald" - starts inactive
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Present_Value | BACnetBinaryPV | app | no |
-| Status_Flags | BACnetStatusFlags | stack | no |
-| Event_State | BACnetEventState | stack default, accepted (Generic Enumerated default: `0`) | no |
-| Out_Of_Service | Boolean | app | no |
-| Polarity | BACnetPolarity | app | no |
-
-### Multi-state Input 1 "Hot Pink" - state 1 of 3: On, Off, Auto
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Present_Value | Unsigned | app | no |
-| Status_Flags | BACnetStatusFlags | stack | no |
-| Event_State | BACnetEventState | stack default, accepted (Generic Enumerated default: `0`) | no |
-| Out_Of_Service | Boolean | app | no |
-| Number_Of_States | Unsigned | app | no |
-| State_Text *(optional, enabled)* | BACnetARRAY[N] of CharacterString | app | no |
-
-### Network Port 1 "Vermilion" - BACnet/IP; Network_Type and Protocol_Level are set from BACnetStack_AddNetworkPortObject()'s arguments (IPv4, BACnet Application) at start-up, not a GetProperty callback like the object's other app-served rows; Changes_Pending is likewise computed and answered natively by the stack's Network Port object. Reliability has no fault condition this example detects, so it is accepted at the generic default (normal)
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Status_Flags | BACnetStatusFlags | stack | no |
-| Reliability | BACnetReliability | stack default, accepted (Generic Enumerated default: `0`) | no |
-| Out_Of_Service | Boolean | app | no |
-| Network_Type | BACnetNetworkType | app | no |
-| Protocol_Level | BACnetProtocolLevel | app | no |
-| Changes_Pending | Boolean | app | no |
-
-### Elevator Group 1 "Maroon" - F-ELEVATOR (canonical). Machine_Room_ID, Group_ID and Group_Members are NOT stack DEFAULTS - they are genuinely stored and served by BACnetStack_AddElevatorGroupObject (Group_Members is also maintained by BACnetStack_AddLiftOrEscalatorObject as Lift 1/Mauve is added to this group). They are marked accepted only because property-profile-reference.md's generic per-type table does not know about this object-specific host-configuration API and so cannot credit them as stack-served. isGroupOfLifts=true and supportLandingCallStatus=true: Group_Mode and LandingCalls are therefore also enabled (see the Lift's note for how the four F-ELEVATOR list/sequence callbacks are exercised) but property-profile-reference.md's generic Elevator Group table does not mark either 'required', so neither generates a checked row here - Group_Mode is served by GetPropertyEnumerated (normal) and LandingCalls by GetListElevatorGroupLandingCallStatus (no calls outstanding) regardless
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Machine_Room_ID | BACnetObjectIdentifier | stack default, accepted (None known - a read fails with `unknown-property` or an empt) | no |
-| Group_ID | Unsigned8 | stack default, accepted (Generic UnsignedInteger default: `0`) | no |
-| Group_Members | BACnetARRAY[N] of BACnetObjectIdentifier | stack default, accepted (None known - a read fails with `unknown-property` or an empt) | no |
-
-### Lift 1 "Mauve" - F-ELEVATOR (canonical). property-profile-reference.md's generated Lift table is INCOMPLETE relative to CASBACnetStackDLL.h's own doc comment for BACnetStack_AddLiftOrEscalatorObject (a documentation gap in the stack repo, not a stack API gap): the markdown table omits Car_Position, Car_Moving_Direction, Car_Door_Status, Passenger_Alarm, Out_Of_Service and Fault_Signals entirely, even though the DLL header lists all six as REQUIRED Lift properties. This example serves every one of them regardless, because they are genuinely required by clause 12.59 - Car_Position and Car_Moving_Direction via GetPropertyUnsignedInteger/GetPropertyEnumerated, Car_Door_Status (one door, index 1) via GetPropertyEnumerated with useArrayIndex, Passenger_Alarm and Out_Of_Service via GetPropertyBool, Fault_Signals (empty - no active faults) via the GetListOfEnumerations callback. Status_Flags, Elevator_Group, Group_ID and Installation_ID ARE in the generic table (stack-computed/stack-stored) and are accepted for the same reason as Maroon's. Passenger_Alarm is the AE-N-I-B alarm source: an intrinsic ChangeOfState(bool) algorithm routed to Notification Class 1 (Crimson); it is not writable through any API in this stack (a real installation drives it from hardware), so this example simulates it on a 30-second timer rather than a key or a write - see the file header comment in main.cpp. Optional properties Assigned_Landing_Calls, Registered_Car_Call and Landing_Door_Status are enabled and each exercises one of the four F-ELEVATOR list/sequence callbacks with one demonstration entry
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Status_Flags | BACnetStatusFlags | stack | no |
-| Elevator_Group | BACnetObjectIdentifier | stack default, accepted (None known - a read fails with `unknown-property` or an empt) | no |
-| Group_ID | Unsigned8 | stack default, accepted (Generic UnsignedInteger default: `0`) | no |
-| Installation_ID | Unsigned8 | stack default, accepted (Generic UnsignedInteger default: `0`) | no |
-
-### Escalator 1 "Mint" - F-ELEVATOR. Not a member of Maroon (a group of Lifts, isGroupOfLifts=true) - added with the spec's 'no reference' sentinel (4194303) for Elevator_Group, as clause 12.60.6 allows. Required Operation_Direction (no stack default), Passenger_Alarm and Out_Of_Service are served by the app; the optional Power_Mode and Escalator_Mode are enabled and served too, for a fuller demonstration. Status_Flags/Elevator_Group/Group_ID/Installation_ID are stack-stored, same reasoning as Mauve's
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Status_Flags | BACnetStatusFlags | stack | no |
-| Elevator_Group | BACnetObjectIdentifier | stack default, accepted (None known - a read fails with `unknown-property` or an empt) | no |
-| Group_ID | Unsigned8 | stack default, accepted (Generic UnsignedInteger default: `0`) | no |
-| Installation_ID | Unsigned8 | stack default, accepted (Generic UnsignedInteger default: `0`) | no |
-| Power_Mode *(optional, enabled)* | Boolean | stack default (Generic Boolean default: `false`) | no |
-| Operation_Direction | BACnetEscalatorOperationDirection | app | no |
-| Escalator_Mode *(optional, enabled)* | BACnetEscalatorMode | stack default (Generic Enumerated default: `0`) | no |
-| Out_Of_Service | Boolean | app | no |
-| Passenger_Alarm | Boolean | app | no |
-
-### Positive Integer Value 1 "Turquoise" - not one of the profile's named objects - added explicitly by this application, BEFORE Elevator Group 1 (Maroon), as the object Maroon's Machine_Room_ID references. BACnetStack_AddElevatorGroupObject's own doc comment reads as though the stack creates this object automatically if missing; verified against the running stack, it does not - AddElevatorGroupObject fails outright ('Create the Positive Integer Value object before adding the Elevator Group object') unless the application adds it first. Colour 'Turquoise' per docs/colour-table.md's global positive_integer_value mapping; Present_Value (required, no stack default) is served as an arbitrary plausible room id. Units defaults to no-units (accepted) since a machine-room identifier has none; Out_Of_Service is optional and left at the generic default
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Present_Value | Unsigned | app | no |
-| Status_Flags | BACnetStatusFlags | stack | no |
-| Units | BACnetEngineeringUnits | stack default, accepted (`BACnetEngineeringUnits::noUnits`) | no |
-
-### Notification Class 1 "Crimson" - AE-N-I-B / AE-ACK-B / AE-INFO-B. Priority, Ack_Required and Recipient_List are NOT stack DEFAULTS - they are genuinely populated by BACnetStack_AddNotificationClassObject (Priority, Ack_Required) and BACnetStack_AddRecipientToNotificationClass (Recipient_List) at start-up; marked accepted only because property-profile-reference.md's generic per-type table does not know about this object-specific host-configuration API. Unlike B-AAC (AE-CRL-B), Recipient_List is NOT made writable here - this profile has no AE-CRL-B requirement and B-EM accepts no WriteProperty of any kind
-
-| Property | Datatype | Served by | Writable |
-|---|---|---|:---:|
-| Object_Identifier | BACnetObjectIdentifier | stack | no |
-| Object_Name | CharacterString | app | no |
-| Object_Type | BACnetObjectType | stack | no |
-| Priority | BACnetARRAY[3] of Unsigned | stack default, accepted (Generic UnsignedInteger default: `0`) | no |
-| Ack_Required | BACnetEventTransitionBits | stack default, accepted (Generic BitString default: empty bitstring (zero bits - NOT ) | no |
-| Recipient_List | BACnetLIST of BACnetDestination | stack default, accepted (None known - a read fails with `unknown-property` or an empt) | no |
-
-<!-- OBJECTS-PROPERTIES:END -->
+v1.0.0 was published from a prebuilt STATIC stack library rather than the
+SOURCE build documented above; the next release refreshes these numbers from
+the documented build.
 
 ## The BACnet profile example series
 
 <!-- PROFILE-TABLE:BEGIN (generated from cas-bacnet-stack-examples/docs/profile-table.md - do not edit here) -->
-The CAS BACnet Stack supports every standardized device profile in ASHRAE 135-2024 Annex L. One example repository per profile shows how. ✅ = the required BIBB (service) is supported by the CAS BACnet Stack; the **Example** column is the state of that profile's tutorial repository.
+The CAS BACnet Stack supports every standardized device profile in ASHRAE 135-2024 Annex L, and there is one example repository per profile. Pick the profile your device claims, then the language you build in.
 
 ### Controllers (Annex L.4)
 
-| Profile | Example | Required BIBBs (services) |
+| Profile | C++ | Node.js |
 |---|---|---|
-| **B-SS** Smart Sensor | [B-SS-CPP](https://github.com/chipkin/BACnetProfileExample-B-SS-CPP) ✅ | ✅ DS-RP-B · ✅ DM-DDB-B · ✅ DM-DOB-B |
-| **B-SA** Smart Actuator | [B-SA-CPP](https://github.com/chipkin/BACnetProfileExample-B-SA-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DM-DDB-B · ✅ DM-DOB-B |
-| **B-ASC** Application Specific Controller | [B-ASC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ASC-CPP) ✅ · [B-ASC-Node](https://github.com/chipkin/BACnetProfileExample-B-ASC-Node) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B |
-| **B-AAC** Advanced Application Controller | [B-AAC-CPP](https://github.com/chipkin/BACnetProfileExample-B-AAC-CPP) ✅ | ✅ DS-RP-B · ✅ DS-RPM-B · ✅ DS-WP-B · ✅ DS-WPM-B · ✅ AE-N-I-B · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ AE-CRL-B · ✅ SCHED-I-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B · ✅ DM-RD-B |
-| **B-BC** Building Controller | [B-BC-CPP](https://github.com/chipkin/BACnetProfileExample-B-BC-CPP) ✅ | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-RPM-B · ✅ DS-WP-A · ✅ DS-WP-B · ✅ DS-WPM-B · ✅ AE-N-I-B · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ AE-CRL-B · ✅ SCHED-E-B · ✅ T-VMT-I-B · ✅ T-ATR-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B · ✅ DM-RD-B · ✅ DM-BR-B |
+| **B-SS** Smart Sensor | [B-SS-CPP](https://github.com/chipkin/BACnetProfileExample-B-SS-CPP) | — |
+| **B-SA** Smart Actuator | [B-SA-CPP](https://github.com/chipkin/BACnetProfileExample-B-SA-CPP) | — |
+| **B-ASC** Application Specific Controller | [B-ASC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ASC-CPP) | [B-ASC-Node](https://github.com/chipkin/BACnetProfileExample-B-ASC-Node) |
+| **B-AAC** Advanced Application Controller | [B-AAC-CPP](https://github.com/chipkin/BACnetProfileExample-B-AAC-CPP) | — |
+| **B-BC** Building Controller | [B-BC-CPP](https://github.com/chipkin/BACnetProfileExample-B-BC-CPP) | — |
 
 ### Life safety controllers (Annex L.5)
 
-| Profile | Example | Required BIBBs (services) |
+| Profile | C++ | Node.js |
 |---|---|---|
-| **B-LSC** Life Safety Controller | [B-LSC-CPP](https://github.com/chipkin/BACnetProfileExample-B-LSC-CPP) 🚧 (blocked: [cas-bacnet-stack#2036](https://github.com/chipkin/cas-bacnet-stack/issues/2036)) | ✅ DS-RP-B · ✅ DS-RPM-B · ✅ DS-WP-B · ✅ DS-WPM-B · ✅ DS-COV-B · ✅ AE-LS-B · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B · ✅ DM-RD-B |
-| **B-ALSC** Advanced Life Safety Controller | [B-ALSC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ALSC-CPP) ✅ | ✅ DS-RP-B · ✅ DS-RPM-B · ✅ DS-WP-B · ✅ DS-WPM-B · ✅ DS-COV-B · ✅ AE-LS-B · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ AE-EL-I-B · ✅ SCHED-I-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B · ✅ DM-RD-B |
+| **B-LSC** Life Safety Controller | [B-LSC-CPP](https://github.com/chipkin/BACnetProfileExample-B-LSC-CPP) 🚧 | — |
+| **B-ALSC** Advanced Life Safety Controller | [B-ALSC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ALSC-CPP) | — |
 
 ### Access control controllers (Annex L.6)
 
-| Profile | Example | Required BIBBs (services) |
+| Profile | C++ | Node.js |
 |---|---|---|
-| **B-ACC** Access Control Controller | [B-ACC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACC-CPP) ✅ | ✅ DS-RP-B · ✅ DS-RPM-B · ✅ DS-WP-B · ✅ DS-WPM-B · ✅ DS-COV-B · ✅ DS-ACUC-B · ✅ DS-ACSC-B · ☐ AE-AC-B ([cas-bacnet-stack#2044](https://github.com/chipkin/cas-bacnet-stack/issues/2044)) · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ AE-EL-I-B · ✅ SCHED-I-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B · ✅ DM-RD-B · ✅ DM-BR-B |
-| **B-AACC** Advanced Access Control Controller | [B-AACC-CPP](https://github.com/chipkin/BACnetProfileExample-B-AACC-CPP) ✅ | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-RPM-B · ✅ DS-WP-A · ✅ DS-WP-B · ✅ DS-WPM-B · ✅ DS-COV-A · ✅ DS-COV-B · ✅ DS-ACAD-A · ☐ DS-ACCDI-A · ✅ DS-ACUC-B · ✅ DS-ACSC-B · ☐ AE-AC-B ([cas-bacnet-stack#2044](https://github.com/chipkin/cas-bacnet-stack/issues/2044)) · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ AE-EL-I-B · ✅ SCHED-I-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B · ✅ DM-RD-B · ✅ DM-BR-B |
+| **B-ACC** Access Control Controller | [B-ACC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACC-CPP) | — |
+| **B-AACC** Advanced Access Control Controller | [B-AACC-CPP](https://github.com/chipkin/BACnetProfileExample-B-AACC-CPP) | — |
 
 ### Lighting controllers (Annex L.11)
 
-| Profile | Example | Required BIBBs (services) |
+| Profile | C++ | Node.js |
 |---|---|---|
-| **B-LD** Lighting Device | [B-LD-CPP](https://github.com/chipkin/BACnetProfileExample-B-LD-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DS-LO-B / DS-BLO-B · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B |
-| **B-LS** Lighting Supervisor | [B-LS-CPP](https://github.com/chipkin/BACnetProfileExample-B-LS-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-A · ✅ DS-WP-B · ✅ DS-WG-E-B · ✅ DS-ALO-A · ✅ SCHED-E-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B |
+| **B-LD** Lighting Device | [B-LD-CPP](https://github.com/chipkin/BACnetProfileExample-B-LD-CPP) | — |
+| **B-LS** Lighting Supervisor | [B-LS-CPP](https://github.com/chipkin/BACnetProfileExample-B-LS-CPP) | — |
 
 ### Elevator controllers (Annex L.13)
 
-| Profile | Example | Required BIBBs (services) |
+| Profile | C++ | Node.js |
 |---|---|---|
-| **B-EM** Elevator Monitor | [B-EM-CPP](https://github.com/chipkin/BACnetProfileExample-B-EM-CPP) ✅ | ✅ DS-RP-B · ✅ DS-RPM-B · ✅ DS-COV-B · ✅ DS-COVM-B · ✅ AE-N-I-B · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B |
-| **B-EC** Elevator Controller | [B-EC-CPP](https://github.com/chipkin/BACnetProfileExample-B-EC-CPP) ✅ | ✅ DS-RP-B · ✅ DS-RPM-B · ✅ DS-WP-B · ✅ DS-WPM-B · ✅ DS-COV-B · ✅ DS-COVM-B · ✅ AE-N-I-B · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B · ✅ DM-RD-B |
-| **B-AEC** Advanced Elevator Controller | [B-AEC-CPP](https://github.com/chipkin/BACnetProfileExample-B-AEC-CPP) ✅ | ✅ DS-RP-B · ✅ DS-RPM-B · ✅ DS-WP-B · ✅ DS-WPM-B · ✅ DS-COV-B · ✅ DS-COVM-B · ✅ AE-N-I-B · ✅ AE-ACK-B · ✅ AE-INFO-B · ✅ AE-EL-I-B · ✅ SCHED-I-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B · ✅ DM-OCD-B · ✅ DM-RD-B · ✅ DM-BR-B |
+| **B-EM** Elevator Monitor | [B-EM-CPP](https://github.com/chipkin/BACnetProfileExample-B-EM-CPP) | — |
+| **B-EC** Elevator Controller | [B-EC-CPP](https://github.com/chipkin/BACnetProfileExample-B-EC-CPP) | — |
+| **B-AEC** Advanced Elevator Controller | [B-AEC-CPP](https://github.com/chipkin/BACnetProfileExample-B-AEC-CPP) | — |
 
 ### Authentication and authorization (Annex L.14)
 
-| Profile | Example | Required BIBBs (services) |
+| Profile | C++ | Node.js |
 |---|---|---|
-| **B-AS** Authorization Server | [B-AS-CPP](https://github.com/chipkin/BACnetProfileExample-B-AS-CPP) ✅ | ✅ DS-RP-B · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ☐ AA-AS-B ([cas-bacnet-stack#2043](https://github.com/chipkin/cas-bacnet-stack/issues/2043)) |
+| **B-AS** Authorization Server | [B-AS-CPP](https://github.com/chipkin/BACnetProfileExample-B-AS-CPP) | — |
 
 ### Miscellaneous (Annex L.7, combinable with any one family)
 
-| Profile | Example | Required BIBBs (services) |
+| Profile | C++ | Node.js |
 |---|---|---|
-| **B-BBMD** Broadcast Management Device | [B-BBMD-CPP](https://github.com/chipkin/BACnetProfileExample-B-BBMD-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ NM-BBMDC-B |
-| **B-ACDC** Access Control Door Controller | [B-ACDC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACDC-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DS-ACAD-B · ✅ DM-DDB-B · ✅ DM-DOB-B |
-| **B-ACCR** Access Control Credential Reader | [B-ACCR-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACCR-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DS-COV-B · ✅ DS-ACCDI-B · ✅ DM-DDB-B · ✅ DM-DOB-B |
-| **B-RTR** Router | [B-RTR-CPP](https://github.com/chipkin/BACnetProfileExample-B-RTR-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DM-DDB-A · ✅ DM-DOB-B · ☐ DM-LM-B · ✅ NM-RC-B |
-| **B-GW** Gateway | [B-GW-CPP](https://github.com/chipkin/BACnetProfileExample-B-GW-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ GW-EO-B / GW-VN-B |
-| **B-DAP** Device Address Proxy | [B-DAP-CPP](https://github.com/chipkin/BACnetProfileExample-B-DAP-CPP) ✅ | ✅ DS-RP-B · ✅ DS-WP-B · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DAB-B |
-| **B-SCHUB** BACnet/SC Hub | [B-SCHUB-CPP](https://github.com/chipkin/BACnetProfileExample-B-SCHUB-CPP) ✅ | ✅ DS-RP-B · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ NM-SCH-B |
-| **B-GENERAL** General device (Annex L.8) | *(satisfied by every example above)* | ✅ DS-RP-B · ✅ DM-DDB-B · ✅ DM-DOB-B |
+| **B-BBMD** Broadcast Management Device | [B-BBMD-CPP](https://github.com/chipkin/BACnetProfileExample-B-BBMD-CPP) | — |
+| **B-ACDC** Access Control Door Controller | [B-ACDC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACDC-CPP) | — |
+| **B-ACCR** Access Control Credential Reader | [B-ACCR-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACCR-CPP) | — |
+| **B-RTR** Router | [B-RTR-CPP](https://github.com/chipkin/BACnetProfileExample-B-RTR-CPP) | — |
+| **B-GW** Gateway | [B-GW-CPP](https://github.com/chipkin/BACnetProfileExample-B-GW-CPP) | — |
+| **B-DAP** Device Address Proxy | [B-DAP-CPP](https://github.com/chipkin/BACnetProfileExample-B-DAP-CPP) | — |
+| **B-SCHUB** BACnet/SC Hub | [B-SCHUB-CPP](https://github.com/chipkin/BACnetProfileExample-B-SCHUB-CPP) | — |
+| **B-GENERAL** General device (Annex L.8) | *(satisfied by every example above)* | — |
 
-### Operator interfaces and workstations (Annex L.1–L.3, L.9–L.10, L.12) — client-side profiles
+### Operator interfaces and workstations (Annex L.1–L.3, L.9–L.10, L.12)
 
-| Profile | Example | Required BIBBs (services) |
+Client-side profiles.
+
+| Profile | C++ | Node.js |
 |---|---|---|
-| **B-OD** Operator Display | [B-OD-CPP](https://github.com/chipkin/BACnetProfileExample-B-OD-CPP) ✅ | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-WP-A · ✅ DS-V-A · ✅ DS-M-A · ✅ AE-N-A · ✅ AE-VN-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B |
-| **B-OWS** Operator Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-WP-A · ✅ DS-V-A · ✅ DS-M-A · ✅ AE-N-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-VM-A · ✅ AE-VN-A · ✅ SCHED-VM-A · ✅ T-V-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-MTS-A |
-| **B-AWS** Advanced Operator Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-AV-A · ✅ DS-AM-A · ✅ AE-N-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-AVM-A · ✅ AE-AVN-A · ✅ AE-ELVM-A · ✅ SCHED-AVM-A · ✅ T-AVM-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-ANM-A · ✅ DM-ADM-A · ✅ DM-DOB-B · ✅ DM-DCC-A · ✅ DM-MTS-A · ✅ DM-OCD-A · ✅ DM-RD-A · ✅ DM-BR-A · ✅ DM-DDA-A · ✅ NM-CC-A · ✅ AR-AVM-A |
-| **B-XAWS** Extended Advanced Operator Workstation | planned | ✅ union of B-AWS + B-AACWS + B-ALWS + B-AEWS |
-| **B-LSAP** Life Safety Annunciator Panel | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-WP-A · ✅ DS-LSV-A · ✅ AE-N-A · ✅ AE-LS-A · ✅ AE-ACK-A · ✅ AE-LSVN-A |
-| **B-LSWS** Life Safety Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-LSV-A · ✅ DS-LSM-A · ✅ AE-N-A · ✅ AE-LS-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-LSVM-A · ✅ AE-LSAVN-A · ✅ AE-ELV-A · ✅ SCHED-VM-A · ✅ T-V-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-ANM-A · ✅ DM-ADM-A · ✅ DM-DOB-B · ✅ DM-DCC-A · ✅ DM-MTS-A · ✅ DM-OCD-A · ✅ DM-RD-A · ✅ DM-BR-A |
-| **B-ALSWS** Advanced Life Safety Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-LSAV-A · ✅ DS-LSAM-A · ✅ AE-N-A · ✅ AE-LS-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-LSAVM-A · ✅ AE-LSAVN-A · ✅ AE-ELVM-A · ✅ SCHED-AVM-A · ✅ T-AVM-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-ANM-A · ✅ DM-ADM-A · ✅ DM-DOB-B · ✅ DM-DCC-A · ✅ DM-MTS-A · ✅ DM-OCD-A · ✅ DM-RD-A · ✅ DM-BR-A · ✅ AR-AVM-A |
-| **B-ACSD** Access Control Security Display | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-ACV-A · ✅ DS-ACM-A · ✅ AE-N-A · ✅ AE-AC-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-ACAVN-A · ✅ AE-ELV-A · ✅ SCHED-VM-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-MTS-A |
-| **B-ACWS** Access Control Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-ACAV-A · ✅ DS-ACM-A · ✅ DS-ACUC-A · ✅ AE-N-A · ✅ AE-AC-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-ACVM-A · ✅ AE-ACAVN-A · ✅ AE-ELV-A · ✅ SCHED-VM-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-ANM-A · ✅ DM-ADM-A · ✅ DM-DOB-B · ✅ DM-DCC-A · ✅ DM-MTS-A · ✅ DM-OCD-A · ✅ DM-RD-A · ✅ DM-BR-A |
-| **B-AACWS** Advanced Access Control Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-ACAV-A · ✅ DS-ACAM-A · ✅ DS-ACUC-A · ✅ DS-ACSC-A · ✅ AE-N-A · ✅ AE-AC-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-ACAVM-A · ✅ AE-ACAVN-A · ✅ AE-ELVM-A · ✅ SCHED-AVM-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-ANM-A · ✅ DM-ADM-A · ✅ DM-DOB-B · ✅ DM-DCC-A · ✅ DM-MTS-A · ✅ DM-OCD-A · ✅ DM-RD-A · ✅ DM-BR-A · ✅ AR-AVM-A |
-| **B-LOD** Lighting Operator Display | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-WP-A · ✅ DS-LV-A · ✅ DS-WG-A · ✅ DS-ALO-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B |
-| **B-ALWS** Advanced Lighting Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-LAV-A · ✅ DS-LAM-A · ✅ DS-WG-A · ✅ DS-ALO-A · ✅ AE-N-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-AVM-A · ✅ AE-AVN-A · ✅ AE-ELVM-A · ✅ SCHED-AVM-A · ✅ T-AVM-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-ANM-A · ✅ DM-ADM-A · ✅ DM-DOB-B · ✅ DM-DCC-A · ✅ DM-MTS-A · ✅ DM-OCD-A · ✅ DM-RD-A · ✅ DM-BR-A |
-| **B-LCS** Lighting Control Station | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-WP-A · ✅ DS-LO-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B |
-| **B-ALCS** Advanced Lighting Control Station | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-WG-A · ✅ DS-ALO-A · ✅ SCHED-E-B · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B · ✅ DM-DCC-B · ✅ DM-TS-B / DM-UTC-B |
-| **B-ED** Elevator Display | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-WP-A · ✅ DS-EV-A · ✅ AE-N-A · ✅ AE-ACK-A · ✅ AE-EVN-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-DOB-B |
-| **B-EWS** Elevator Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-COVM-A · ✅ DS-EV-A · ✅ DS-EM-A · ✅ AE-N-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-EVM-A · ✅ AE-EAVN-A · ✅ SCHED-VM-A · ✅ T-V-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-ANM-A · ✅ DM-ADM-A · ✅ DM-DOB-B · ✅ DM-DCC-A · ✅ DM-MTS-A |
-| **B-AEWS** Advanced Elevator Workstation | planned | ✅ DS-RP-A · ✅ DS-RP-B · ✅ DS-RPM-A · ✅ DS-WP-A · ✅ DS-WPM-A · ✅ DS-COVM-A · ✅ DS-EAV-A · ✅ DS-EAM-A · ✅ AE-N-A · ✅ AE-ACK-A · ✅ AE-AS-A · ✅ AE-EAVM-A · ✅ AE-EAVN-A · ✅ AE-ELVM-A · ✅ SCHED-AVM-A · ✅ T-AVM-A · ✅ DM-DDB-A · ✅ DM-DDB-B · ✅ DM-ANM-A · ✅ DM-ADM-A · ✅ DM-DOB-B · ✅ DM-DCC-A · ✅ DM-MTS-A · ✅ DM-OCD-A · ✅ DM-RD-A · ✅ DM-BR-A |
+| **B-OD** Operator Display | [B-OD-CPP](https://github.com/chipkin/BACnetProfileExample-B-OD-CPP) | — |
+| **B-OWS** Operator Workstation | planned | — |
+| **B-AWS** Advanced Operator Workstation | planned | — |
+| **B-XAWS** Extended Advanced Operator Workstation | planned | — |
+| **B-LSAP** Life Safety Annunciator Panel | planned | — |
+| **B-LSWS** Life Safety Workstation | planned | — |
+| **B-ALSWS** Advanced Life Safety Workstation | planned | — |
+| **B-ACSD** Access Control Security Display | planned | — |
+| **B-ACWS** Access Control Workstation | planned | — |
+| **B-AACWS** Advanced Access Control Workstation | planned | — |
+| **B-LOD** Lighting Operator Display | planned | — |
+| **B-ALWS** Advanced Lighting Workstation | planned | — |
+| **B-LCS** Lighting Control Station | planned | — |
+| **B-ALCS** Advanced Lighting Control Station | planned | — |
+| **B-ED** Elevator Display | planned | — |
+| **B-EWS** Elevator Workstation | planned | — |
+| **B-AEWS** Advanced Elevator Workstation | planned | — |
 
-Profile definitions: ANSI/ASHRAE 135-2024 Annex L. BIBB definitions: Annex K. Get the stack: <https://store.chipkin.com/services/stacks/bacnet-stack>.
+🚧 = in progress. Profile definitions: ANSI/ASHRAE 135-2024 Annex L. BIBB definitions: Annex K. Get the stack: <https://store.chipkin.com/services/stacks/bacnet-stack>.
 <!-- PROFILE-TABLE:END -->
-
-## Footprint
-
-Release-build sizes and start-up timing, from the latest tagged release's CI
-run (`metrics-windows.json` / `metrics-linux.json`), both built with
-`CAS_BACNET_STACK_LINK=STATIC`:
-
-<!-- METRICS -->
-| Platform | Binary | Size | SHA-256 (prefix) | Start-up to `ready` | Stack commit | Link mode | Compiler |
-|---|---|---|---|---|---|---|---|
-| Windows x64 (windows-2022) | `BACnetExampleBEM.exe` | 3,400,192 bytes (~3.2 MiB) | `0b073f7d60177582` | 112 ms | `abd4cee1` | STATIC | Visual Studio 17 2022 |
-| Linux x64 (ubuntu-latest) | `BACnetExampleBEM` | 44,752 bytes (~44 KiB) | `e823d863a0255ea7` | 110 ms | `abd4cee1` | STATIC | `/usr/bin/c++` |
-
-From release [v1.0.0](https://github.com/chipkin/BACnetProfileExample-B-EM-CPP/releases/tag/v1.0.0) (`metrics-windows.json` / `metrics-linux.json`).
 
 ## References
 
-- **ANSI/ASHRAE 135** - object model (Clause 12), alarming/events (Clause 13),
-  services (Clause 16), device profiles (Annex L).
-- **CAS BACnet Stack** - <https://store.chipkin.com/services/stacks/bacnet-stack>.
+- **ANSI/ASHRAE Standard 135** (BACnet) - the protocol standard. Object model
+  (Clause 12), alarm and event services (Clause 13), services (Clause 15),
+  BACnet/IP (Annex J), device profiles (Annex L). Purchase / preview via the
+  [ASHRAE store](https://www.ashrae.org/technical-resources/standards-and-guidelines).
+- **What is BACnet?** - Chipkin's introduction:
+  <https://docs.chipkin.com/protocols/bacnet/>.
+- **CAS BACnet Stack** - product page and documentation:
+  <https://store.chipkin.com/services/stacks/bacnet-stack>.
+- **CAS BACnet Explorer** - client for testing this device:
+  <https://store.chipkin.com/products/tools/cas-bacnet-explorer>.
 - **B-AAC example** (the alarming/notification-class pattern this reuses) -
   <https://github.com/chipkin/BACnetProfileExample-B-AAC-CPP>.
-- **[CHANGELOG.md](CHANGELOG.md)**, **[AGENTS.md](AGENTS.md)**,
-  **[`common/README.md`](common/README.md)**.
+- **Shared helper used by this example** - [`common/README.md`](common/README.md).
 
-## Use this in your own project
-
-Self-contained: clone (with the submodule) and build, then copy what you need. The
-example source is **CC0-1.0** (public domain). The CAS BACnet Stack is a separate,
-commercially licensed product not covered by CC0.
+See also [TUTORIAL.md](TUTORIAL.md), [docs/PICS.md](docs/PICS.md),
+[CHANGELOG.md](CHANGELOG.md), and [AGENTS.md](AGENTS.md).

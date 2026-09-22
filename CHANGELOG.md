@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`Application_Software_Version` (12) and `Firmware_Revision` (44) were
+  hardcoded and stale** - both were separate `static const char*` constants
+  literally `"1.0.0"`, never wired to anything, so they would have silently
+  drifted from the real build the moment `APP_VERSION` was next bumped (as it
+  is right here, to `1.0.1`). Fixed the same way as the identical bug in
+  `BACnetProfileExample-B-SCHUB-CPP`: `Application_Software_Version` now
+  reads `APP_VERSION` directly (one source of truth, can't drift from
+  `--version`'s own banner again). `Firmware_Revision` is now built at
+  runtime from the CAS BACnet Stack's own `BACnetStack_GetAPIMajorVersion()`/
+  `GetAPIMinorVersion()`/`GetAPIPatchVersion()`/`GetAPIBuildVersion()` (the
+  same 4 calls `common/CASExampleHelper.cpp`'s `PrintVersion()` already uses
+  for the startup banner), populated once into `g_firmwareRevision` right
+  after `LoadBACnetFunctions()` succeeds. Verified with a clean Release
+  build and a real ReadProperty against the running device (via
+  `bacpypes3`): `Application_Software_Version = "1.0.1"`,
+  `Firmware_Revision = "6.0.21.0"` - both now match the actual running
+  build instead of a hardcoded `"1.0.0"`.
+
 ### Changed
 
 - **Documentation restructure**, matching `BACnetProfileExample-B-SS-CPP`:

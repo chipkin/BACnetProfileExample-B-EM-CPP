@@ -78,7 +78,7 @@ interactive command.
 
 ## Conventions
 
-- Device is named "Rainbow"; objects use the series' colour names; vendor id 389.
+- Device is named "Chipkin Example B-EM"; objects use the series' colour names; vendor id 389.
 - **Read-only, unconditionally.** No `BACnetStack_RegisterCallbackSetProperty*`
   call appears anywhere in `main.cpp`, and WriteProperty / WritePropertyMultiple
   are never enabled with `BACnetStack_SetServiceEnabled`. If you are tempted to

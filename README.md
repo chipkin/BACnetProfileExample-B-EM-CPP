@@ -72,7 +72,7 @@ statement, including which services are explicitly *not* enabled.
 
 | Object type | Instance | Name |
 |-------------|:--------:|------|
-| Device | 389015 | Rainbow |
+| Device | 389015 | Chipkin Example B-EM |
 | Analog Input | 1 | Bronze |
 | Binary Input | 1 | Emerald |
 | Multi-State Input | 1 | Hot Pink |
@@ -142,7 +142,7 @@ a monitor reports what is happening, not what a client told it to do.
 ## The device this example creates
 
 ```
-Device 389015  "Rainbow"   (Vendor 389 - Chipkin Automation Systems)
+Device 389015  "Chipkin Example B-EM"   (Vendor 389 - Chipkin Automation Systems)
     ├── Analog Input  1            "Bronze"      read-only sensor (REAL, deg C); F-COVM demo (COV on 2 properties)
     ├── Binary Input  1            "Emerald"     read-only sensor (active/inactive)
     ├── Multi-State Input 1        "Hot Pink"    read-only sensor (state 1..3)
@@ -156,7 +156,7 @@ Device 389015  "Rainbow"   (Vendor 389 - Chipkin Automation Systems)
 
 The three inputs plus the Network Port are the series' shared minimum;
 **Maroon, Mauve, Mint, Turquoise and Crimson are the B-EM additions**. Object
-names follow the series' colour convention (Device is always "Rainbow").
+names follow the series' colour convention (Device is always "Chipkin Example B-EM").
 
 ## Requires the CAS BACnet Stack (licensed product)
 
@@ -245,7 +245,7 @@ CAS BACnet Stack version: 6.0.21.0
 Common helper (common/) version: 2.5.0
 FYI: Listening for BACnet/IP on UDP port 47808 (Network Port 1).
 TX 21 bytes to 192.168.3.255:47808 (broadcast) (Network Port 1)
-FYI: Device 389015 ("Rainbow") ready. Vendor ID 389. Read-only monitor - no WriteProperty of any kind is accepted. Press 'h' for help.
+FYI: Device 389015 ("Chipkin Example B-EM") ready. Vendor ID 389. Read-only monitor - no WriteProperty of any kind is accepted. Press 'h' for help.
 ```
 
 The `TX` line is the start-up I-Am the device broadcasts to announce itself -

@@ -45,7 +45,9 @@ does), the single most important thing to preserve is what is **absent**:
   passed to `BACnetStack_SetServiceEnabled`.
 - `BACnetStack_RegisterCallbackSetElevatorGroupLandingCallControl` - the
   fifth F-ELEVATOR callback, the one that would accept a client's landing-call
-  *command* - is never registered.
+  *command* - is never registered, and Elevator Group 1 has no
+  `Landing_Call_Control` property at all (135-2024 cl. 12.58.10: "If it is
+  present, it shall be writable").
 
 Adding writes back to a seeded copy is exactly the set of things you add, not
 things you remove. Leaving a callback unregistered (rather than registering
@@ -166,7 +168,9 @@ rather than against "it looked fine in the explorer":
    (see [Keeping the PICS honest](#keeping-the-pics-honest) below). A ⚠ row is
    a required property nothing serves.
 2. Read **every** property listed for **every** object with a BACnet client,
-   and compare the value against the PICS. `"undefined"`, `no-units`,
+   and compare the value against the PICS. `tests/run_wire_tests.py` reads them
+   all and fails on any that does not return a value (README "Wire Tests") -
+   keep it passing, then check the values yourself. `"undefined"`, `no-units`,
    `value-not-initialized` and `0` are the shapes a missed callback takes.
 3. Diff a new object of a type against the existing one of that type. Anything
    that differs and shouldn't is a callback that matched on instance.

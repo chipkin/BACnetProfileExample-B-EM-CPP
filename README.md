@@ -19,11 +19,19 @@ TimeSynchronization of any kind**.
 - **[docs/PICS.md](docs/PICS.md)** - the Protocol Implementation Conformance
   Statement: every object, every property, and who answers it.
 
-> **Versions:** this document describes **example v1.0.0**, built and verified
-> against **CAS BACnet Stack 6.0.21** (`6.x` @ `abd4cee1`), at
-> **Protocol_Revision 24**, with the vendored `common/` helper at **v2.5.0**.
+> **Versions:** this document describes **example v1.1.0**, built and verified
+> against **CAS BACnet Stack 6.0.23** (`6.x` @ `64b2cfac5`), at
+> **Protocol_Revision 30**, with the vendored `common/` helper at **v3.3.0**.
 > Running the example prints all three - if what it prints disagrees with this
 > line, trust the program and check `CHANGELOG.md`.
+
+> **Status: BIBB-conformant, not yet Profile-functional.** Every BIBB, object
+> and service the profile requires answers, and the Wire Tests prove every
+> listed property reads. But the elevator does not move: the Lift's
+> `Car_Position` (floor 3), `Car_Moving_Direction` and `Car_Door_Status` are
+> constants, and the only thing that changes on its own is the simulated
+> `Passenger_Alarm`, which toggles on a 30-second timer. A monitor that shows a
+> car moving between floors, proven by a Wire Test, is the next step.
 
 This example is also the series' **canonical source** for two shared feature
 blocks later repos copy byte-for-byte: **F-COVM** (SubscribeCOVPropertyMultiple)
@@ -120,9 +128,11 @@ served-by breakdown.
 A **fifth** elevator callback exists in the stack -
 `RegisterCallbackSetElevatorGroupLandingCallControl`, which would accept a
 client's landing-call *command* - and this example **deliberately does not
-register it**. That single omission is what keeps `Landing_Call_Control`
-non-writable and is part of how this device guarantees it accepts no command
-of any kind.
+register it**. Maroon also has **no `Landing_Call_Control` property at all**:
+135-2024 cl. 12.58.10 says of it "If it is present, it shall be writable", so a
+read-only monitor leaves it out (`supportLandingCallStatus` is `false`, and
+only the read-only `Landing_Calls` list is enabled). That is part of how this
+device guarantees it accepts no command of any kind.
 
 ## Intrinsic alarming: the Lift's Passenger_Alarm
 
@@ -148,7 +158,7 @@ Device 389015  "Chipkin Example B-EM"   (Vendor 389 - Chipkin Automation Systems
     ├── Multi-State Input 1        "Hot Pink"    read-only sensor (state 1..3)
     ├── Network Port 1             "Vermilion"   the BACnet/IP port (required)
     ├── Elevator Group 1           "Maroon"      groups Mauve; F-ELEVATOR
-    ├── Lift 1                     "Mauve"       car position/doors/alarm; intrinsic ChangeOfState ALARM
+    ├── Lift 1                     "Mauve"       fixed car position/doors (nothing moves); simulated Passenger_Alarm -> intrinsic ChangeOfState ALARM
     ├── Escalator 1                "Mint"        not grouped (escalators aren't lifts)
     ├── Positive Integer Value 1   "Turquoise"   Maroon's Machine_Room_ID target (added before Maroon)
     └── Notification Class 1       "Crimson"     routes Mauve's Passenger_Alarm events
@@ -183,6 +193,8 @@ This is a **self-contained** project. It ships:
 - `common/` - the shared helper (UDP, callbacks, CLI, keyboard) vendored in.
 - `CMakeLists.txt` - the build, the same on Windows, Linux, and macOS.
 - `docs/PICS.md` - the conformance statement.
+- `tests/` - the Wire Tests (see [Wire Tests](#wire-tests)), and `wiretest/`, the
+  series' shared Python harness they are written against (vendored, like `common/`).
 - `submodules/cas-bacnet-stack/` - the **CAS BACnet Stack as a git submodule**
   (private; requires a license - see above). Its sources are compiled into the
   executable, so there is no library or DLL to build, ship, or install.
@@ -240,9 +252,9 @@ CMake at it: `cmake -B build -S . -D CAS_STACK_DIR=/path/to/cas-bacnet-stack`.
 Expected output:
 
 ```
-BACnet B-EM (Elevator Monitor) Example - C++ v1.0.0
-CAS BACnet Stack version: 6.0.21.0
-Common helper (common/) version: 2.5.0
+BACnet B-EM (Elevator Monitor) Example - C++ v1.1.0
+CAS BACnet Stack version: 6.0.23.0
+Common helper (common/) version: 3.3.0
 FYI: Listening for BACnet/IP on UDP port 47808 (Network Port 1).
 TX 21 bytes to 192.168.3.255:47808 (broadcast) (Network Port 1)
 FYI: Device 389015 ("Chipkin Example B-EM") ready. Vendor ID 389. Read-only monitor - no WriteProperty of any kind is accepted. Press 'h' for help.
@@ -297,7 +309,7 @@ With the
 2. **Object model** - ten objects including the Elevator Group "Maroon", Lift
    "Mauve", Escalator "Mint", Positive Integer Value "Turquoise" and
    Notification Class "Crimson". `Object_List` lists them all;
-   `Protocol_Revision` is `24`.
+   `Protocol_Revision` is `30`.
 3. **Confirm NO write is accepted anywhere** - WriteProperty to any property of
    any object, and WritePropertyMultiple, are both rejected as an unsupported
    service.
@@ -319,11 +331,28 @@ With the
 For a property-by-property review against the conformance statement, see
 [TUTORIAL.md](TUTORIAL.md).
 
+## Wire Tests
+
+Steps 1, 2 and 5 above, automated: a Python BACnet client drives the running
+example over BACnet/IP from outside it, the way a client discovers a device -
+Who-Is, the Device's `Object_List`, then for every object its `Property_List`
+and a ReadProperty of every property it lists. Every read must come back as a
+value; an Error, Reject or Abort fails the run. Python 3 standard library only:
+
+```bash
+python3 tests/run_wire_tests.py --exe build/BACnetExampleBEM          # Linux/macOS
+python tests\run_wire_tests.py --exe build\Release\BACnetExampleBEM.exe   # Windows
+```
+
+It ends with `ALL WIRE TESTS PASSED` (exit 0). CI runs it on Linux after the
+smoke test. [tests/README.md](tests/README.md) says what each check proves. It
+does not yet cover writes, COV, alarming or acknowledgement (steps 3, 4, 6, 7).
+
 
 ## The BACnet profile example series
 
 <!-- PROFILE-TABLE:BEGIN (generated from cas-bacnet-stack-examples/docs/profile-table.md - do not edit here) -->
-The CAS BACnet Stack supports every standardized device profile in ASHRAE 135-2024 Annex L, and there is one example repository per profile. Pick the profile your device claims, then the language you build in. "Ask" means the example hasn't been built yet for that language - [contact Chipkin](https://store.chipkin.com/contact-us) if you need one.
+There is one example repository per standardized device profile in ASHRAE 135-2024 Annex L. An example marked ⛔ is blocked: the stack cannot yet perform that profile's function through its customer interface, and the example's README says what it does today. Pick the profile your device claims, then the language you build in. "Ask" means the example hasn't been built yet for that language - [contact Chipkin](https://store.chipkin.com/contact-us) if you need one.
 
 ### Controllers (Annex L.4)
 
@@ -368,7 +397,7 @@ The CAS BACnet Stack supports every standardized device profile in ASHRAE 135-20
 
 | Profile | C++ | Node.js | C# | Rust | Python | Go |
 |---|---|---|---|---|---|---|
-| **B-AS** Authorization Server | [B-AS-CPP](https://github.com/chipkin/BACnetProfileExample-B-AS-CPP) | Ask | Ask | Ask | Ask | Ask |
+| **B-AS** Authorization Server | [B-AS-CPP](https://github.com/chipkin/BACnetProfileExample-B-AS-CPP) ⛔ blocked on [stack #2043](https://github.com/chipkin/cas-bacnet-stack/issues/2043) | Ask | Ask | Ask | Ask | Ask |
 
 ### Miscellaneous (Annex L.7, combinable with any one family)
 
@@ -376,10 +405,10 @@ The CAS BACnet Stack supports every standardized device profile in ASHRAE 135-20
 |---|---|---|---|---|---|---|
 | **B-BBMD** Broadcast Management Device | [B-BBMD-CPP](https://github.com/chipkin/BACnetProfileExample-B-BBMD-CPP) | Ask | Ask | Ask | Ask | Ask |
 | **B-ACDC** Access Control Door Controller | [B-ACDC-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACDC-CPP) | Ask | Ask | Ask | Ask | Ask |
-| **B-ACCR** Access Control Credential Reader | [B-ACCR-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACCR-CPP) | Ask | Ask | Ask | Ask | Ask |
+| **B-ACCR** Access Control Credential Reader | [B-ACCR-CPP](https://github.com/chipkin/BACnetProfileExample-B-ACCR-CPP) ⛔ blocked on [stack #3934](https://github.com/chipkin/cas-bacnet-stack/issues/3934) | Ask | Ask | Ask | Ask | Ask |
 | **B-RTR** Router | [B-RTR-CPP](https://github.com/chipkin/BACnetProfileExample-B-RTR-CPP) | Ask | Ask | Ask | Ask | Ask |
 | **B-GW** Gateway | [B-GW-CPP](https://github.com/chipkin/BACnetProfileExample-B-GW-CPP) | Ask | Ask | Ask | Ask | Ask |
-| **B-DAP** Device Address Proxy | [B-DAP-CPP](https://github.com/chipkin/BACnetProfileExample-B-DAP-CPP) | Ask | Ask | Ask | Ask | Ask |
+| **B-DAP** Device Address Proxy | [B-DAP-CPP](https://github.com/chipkin/BACnetProfileExample-B-DAP-CPP) ⛔ blocked on [stack #2032](https://github.com/chipkin/cas-bacnet-stack/issues/2032) | Ask | Ask | Ask | Ask | Ask |
 | **B-SCHUB** BACnet/SC Hub | [B-SCHUB-CPP](https://github.com/chipkin/BACnetProfileExample-B-SCHUB-CPP) | Ask | Ask | Ask | Ask | Ask |
 | **B-GENERAL** General device (Annex L.8) | *(satisfied by every example above)* | — | — | — | — | — |
 
@@ -407,7 +436,7 @@ Client-side profiles.
 | **B-EWS** Elevator Workstation | planned | — | — | — | — | — |
 | **B-AEWS** Advanced Elevator Workstation | planned | — | — | — | — | — |
 
-🚧 = in progress. "Ask" = not yet built for that language; contact Chipkin if you need it. Profile definitions: ANSI/ASHRAE 135-2024 Annex L. BIBB definitions: Annex K. Get the stack: <https://store.chipkin.com/services/stacks/bacnet-stack>.
+🚧 = in progress. ⛔ = Blocked Example (blocked on the named stack gap). "Ask" = not yet built for that language; contact Chipkin if you need it. Profile definitions: ANSI/ASHRAE 135-2024 Annex L. BIBB definitions: Annex K. Get the stack: <https://store.chipkin.com/services/stacks/bacnet-stack>.
 <!-- PROFILE-TABLE:END -->
 
 ## References

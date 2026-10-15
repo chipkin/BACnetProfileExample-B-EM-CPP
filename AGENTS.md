@@ -17,7 +17,7 @@ TimeSynchronization of any kind**. This repository is the series' canonical
 source for two shared feature blocks later repos copy byte-for-byte:
 **F-COVM** (SubscribeCOVPropertyMultiple) and **F-ELEVATOR** (the Elevator
 Group / Lift / Escalator object family and its four list/sequence callbacks).
-B-EC (Wave 3) seeds from this repo and adds writes back for the lift's
+B-EC seeds from this repo and adds writes back for the lift's
 commandable pieces - keep every comment here accurate for that reuse. The top
 priority is that the code reads like a tutorial a customer can learn from and
 copy-paste. Favour clarity over cleverness.
@@ -85,7 +85,9 @@ interactive command.
   add one while extending this example for a different profile, you are
   building a different profile - do it in a seed repo (e.g. B-EC), not here.
 - F-ELEVATOR: `BACnetStack_AddElevatorGroupObject` (a group of Lifts here;
-  `supportLandingCallStatus=true` turns on the read side of `Landing_Calls`)
+  `supportLandingCallStatus=false`, because it would also add
+  `Landing_Call_Control`, which cl. 12.58.10 requires to be writable; the
+  read-only `Landing_Calls` list is enabled on its own with `SetPropertyEnabled`)
   then `BACnetStack_AddLiftOrEscalatorObject` per Lift/Escalator (pass the
   spec's "no reference" sentinel, `NETWORK_PORT_REFERENCE_PORT_NONE` /
   4194303, for an object not part of that group). Four callbacks page through
@@ -133,13 +135,15 @@ interactive command.
 
 ## How to verify a change
 
-There are no unit tests; verification is behavioural:
+The Wire Tests in `tests/` automate the discovery half of this (README "Wire
+Tests"): `python3 tests/run_wire_tests.py --exe build/BACnetExampleBEM`. Run them
+after any change. Beyond them, verification is behavioural:
 
 1. Build, then run one instance on a clear UDP port.
 2. With a BACnet client (e.g. the CAS BACnet Explorer, or `bacpypes3`/`BAC0`),
    send **Who-Is** and confirm **I-Am** from the device instance.
 3. **ReadProperty** every required property of every object and confirm the
-   values; confirm `Protocol_Revision` is 24 and `Object_List` lists all
+   values; confirm `Protocol_Revision` is 30 and `Object_List` lists all
    objects, including Positive Integer Value 1 (Turquoise), which this
    application adds explicitly before Elevator Group 1 (Maroon).
 4. **Confirm NO write is accepted anywhere**: WriteProperty to any property of

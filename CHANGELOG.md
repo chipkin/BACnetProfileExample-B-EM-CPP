@@ -2,6 +2,52 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.0] - unreleased
+
+### Fixed
+
+- **Elevator Group 1 (Maroon) had two properties a client could not read**,
+  found by the new discovery Wire Test: `Landing_Calls` (470) and
+  `Landing_Call_Control` (471) both answered Error `property` /
+  `read-access-denied`.
+  - `Landing_Calls`: the `GetListElevatorGroupLandingCallStatus` callback
+    answered "no calls" by returning `true` without supplying an element; the
+    stack's contract is to return `false` on the first call for an empty list.
+    It now does, and `Landing_Calls` reads as an empty list.
+  - `Landing_Call_Control` is no longer present. 135-2024 cl. 12.58.10: "If it
+    is present, it shall be writable" - and this device is read-only.
+    `AddElevatorGroupObject` is now called with `supportLandingCallStatus =
+    false` (which enables both) and `Landing_Calls` is enabled on its own with
+    `SetPropertyEnabled`.
+
+### Added
+
+- **Wire Tests** (`tests/`, README "Wire Tests"): `tests/discovery_test.py`,
+  B-SS-CPP's discovery test with this example's object list - Who-Is, the
+  Device's `Object_List` (control: exactly the ten objects), then every object's
+  `Property_List` and a ReadProperty of every listed property; any Error,
+  Reject, Abort or silence fails. `tests/run_wire_tests.py` runs it; CI runs it
+  on Linux after the smoke test. 16/16 on Windows and Linux.
+- `wiretest/` 0.5.0, the series' shared Wiretest Harness, vendored verbatim.
+
+### Changed
+
+- **Stack Pin** `6.x` @ `abd4cee1` (6.0.21) -> `6.x` @ `64b2cfac5` (6.0.23). No
+  API change needed.
+- **`common/` 3.0.0 -> 3.3.0** (B-SS-CPP `b640a81`, verbatim).
+- **Protocol_Revision 24 -> 30** (the stack's default at the new pin).
+- **Segmentation is now supported** (`segmented-both`, `Max_Segments_Accepted`
+  16, `APDU_Segment_Timeout` 5000 ms): the stack's customer build compiles
+  segmentation in from this pin (stack #2992). `docs/PICS.md` section 5 updated.
+- **README is honest about what moves**: a status note says the example is
+  BIBB-conformant but not yet Profile-functional, and the Lift's car position,
+  direction and doors are constants (the object tree used to say Mauve has "car
+  position/doors/alarm").
+- README, AGENTS.md and PICS version lines: stack 6.0.23, `common/`
+  3.3.0, Protocol_Revision 30 (the README still said example v1.0.0 and
+  `common/` 2.5.0). The series profile table is re-synced. APP_VERSION 1.0.2 ->
+  1.1.0.
+
 ## [1.0.2] - unreleased
 
 ### Changed

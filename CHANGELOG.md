@@ -2,6 +2,60 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.0] - unreleased
+
+Profile-functional (series bar, `docs/GLOSSARY.md` in the series repository).
+ANSI/ASHRAE 135-2024 L.13.3: "A B-EM device performs monitoring of an elevator
+control system." It now monitors a moving lift car and reports its faults.
+
+### Added
+
+- **The lift car Simulation** (`simulation/ElevatorCar.cpp`, README "What is
+  Simulation"): a car serving floors 1-8, one floor every 2 s, door cycle
+  (1 s open / 2 s dwell / 1 s close), collective control, and a doorway that
+  can be obstructed: after three failed closes the car raises
+  `DOOR_CLOSING_FAULT` and serves no stops until the door closes. Simulated
+  passengers ride a fixed tour when the car has been idle 3 s. Nothing in it
+  knows about BACnet.
+- **Lift 1 "Mauve" presents the car**: `Car_Position`, `Car_Moving_Direction`
+  (`UP` / `DOWN` / `STOPPED`), `Car_Door_Status` (`SAFETY_LOCKED` while moving,
+  then `OPENING` / `OPENED` / `CLOSING` / `CLOSED`), `Fault_Signals`,
+  `Registered_Car_Call` (the car's pending stops) and `Landing_Door_Status`
+  (floors 1-8, the car's floor following the car door) - all live, each change
+  reported with `BACnetStack_UpdateValue`. `Car_Position`,
+  `Car_Moving_Direction` and `Car_Door_Status` are subscribable (DS-COVM-B on
+  the car).
+- **FAULT_LISTED on the Lift** (cl. 12.59: "For reliability-evaluation, the
+  FAULT_LISTED fault algorithm can be applied"), with `Reliability` enabled:
+  a car fault takes `Reliability` to `FAULTS_LISTED` and `Event_State` to
+  `FAULT`, and Crimson's recipients get a to-fault (CHANGE_OF_RELIABILITY)
+  notification; to-fault is now enabled.
+- **`Number_Of_APDU_Retries` = 3** (cl. 12.11.29's suggested default), so a
+  confirmed notification a recipient missed is sent again.
+- **Test-only hooks**, neither a command-line option: `BEM_SIMULATION_CONTROL_PORT`
+  (a loopback-only UDP control channel into the Simulation: alarm button,
+  doorway, car calls, passengers on/off, speed) and
+  `BEM_TEST_EVENT_RECIPIENT_PORT` (a second, confirmed Crimson recipient at
+  127.0.0.1 - the Wire Tests' operator workstation).
+- **`s` key**: press / release the car's passenger alarm button.
+- **Wire Tests**: `car_monitor_test.py` (the Profile Function: the car followed
+  floor by floor over COV and RPM, door cycle, speed, car calls, landing
+  doors), `car_fault_test.py` (Failure Mode: the obstructed door, FAULT_LISTED,
+  to-fault / to-normal notifications, a faulted car serves no stops) and
+  `passenger_alarm_test.py` (CHANGE_OF_STATE alarm, GetEventInformation,
+  AcknowledgeAlarm; Failure Modes: acknowledging a non-alarm, every write
+  refused). Generic helpers proposed for `wiretest/` 0.7.0 live in `tests/`:
+  `simulation_control.py`, `property_multiple.py` (RPM client side) and
+  `cov_multiple.py` (SubscribeCOVPropertyMultiple). Default port 48030.
+
+### Changed
+
+- The passenger alarm no longer toggles on a 30-second timer; it is the car's
+  alarm button (`s`, or the control channel).
+- `Assigned_Landing_Calls` is always empty (a monitor's group takes no landing
+  calls) instead of a fixed demonstration entry.
+- Application_Software_Version 1.2.0.
+
 ## [1.1.0] - unreleased
 
 ### Fixed

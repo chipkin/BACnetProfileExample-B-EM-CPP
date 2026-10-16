@@ -3,10 +3,12 @@
 A tutorial example showing how to implement the BACnet **B-EM (Elevator
 Monitor)** device profile, in C++, using the
 [CAS BACnet Stack](https://store.chipkin.com/services/stacks/bacnet-stack). It
-answers **ReadProperty / ReadPropertyMultiple**, supports **SubscribeCOV** and
-**SubscribeCOVPropertyMultiple**, generates **intrinsic alarms**
-(EventNotifications when the Lift's Passenger_Alarm goes active), accepts
-**AcknowledgeAlarm** and answers **GetEventInformation**, and handles
+watches a lift car - a [Simulation](#what-is-simulation) of one, moving floor to
+floor - and presents it over BACnet: **ReadProperty / ReadPropertyMultiple**,
+**SubscribeCOV** and **SubscribeCOVPropertyMultiple** (a monitor hears the car
+move), **intrinsic alarms** (an EventNotification when a passenger presses the
+car's alarm button, and a fault notification when a car door fails to close),
+**AcknowledgeAlarm**, **GetEventInformation** and
 **DeviceCommunicationControl**. It is **read-only**: this device accepts **no
 WriteProperty, WritePropertyMultiple, Schedule, ReinitializeDevice or
 TimeSynchronization of any kind**.
@@ -19,19 +21,18 @@ TimeSynchronization of any kind**.
 - **[docs/PICS.md](docs/PICS.md)** - the Protocol Implementation Conformance
   Statement: every object, every property, and who answers it.
 
-> **Versions:** this document describes **example v1.1.0**, built and verified
+> **Versions:** this document describes **example v1.2.0**, built and verified
 > against **CAS BACnet Stack 6.0.23** (`6.x` @ `64b2cfac5`), at
 > **Protocol_Revision 30**, with the vendored `common/` helper at **v3.4.0**.
 > Running the example prints all three - if what it prints disagrees with this
 > line, trust the program and check `CHANGELOG.md`.
 
-> **Status: BIBB-conformant, not yet Profile-functional.** Every BIBB, object
-> and service the profile requires answers, and the Wire Tests prove every
-> listed property reads. But the elevator does not move: the Lift's
-> `Car_Position` (floor 3), `Car_Moving_Direction` and `Car_Door_Status` are
-> constants, and the only thing that changes on its own is the simulated
-> `Passenger_Alarm`, which toggles on a 30-second timer. A monitor that shows a
-> car moving between floors, proven by a Wire Test, is the next step.
+> **Status: Profile-functional.** ANSI/ASHRAE 135-2024 L.13.3: "A B-EM device
+> performs monitoring of an elevator control system." This one monitors a lift
+> car as it moves, reports a car fault and a passenger alarm to an operator
+> workstation, and the [Wire Tests](#wire-tests) prove it against a
+> Python-simulated workstation - each check shown to fail with its feature
+> removed.
 
 This example is also the series' **canonical source** for two shared feature
 blocks later repos copy byte-for-byte: **F-COVM** (SubscribeCOVPropertyMultiple)
@@ -94,6 +95,73 @@ statement, including which services are explicitly *not* enabled.
 Every required property of every object, and who answers it, is in
 [docs/PICS.md](docs/PICS.md).
 
+## The scenario: an operator watches a lift car
+
+What a B-EM is for, in one sentence: **it lets a building's operator watch the
+elevators.** Here the Peer is an operator workstation - any BACnet client: a
+BMS front end, CAS BACnet Explorer, or the Python workstation in
+[`tests/`](tests/README.md). It never commands anything:
+
+1. It subscribes, with one **SubscribeCOVPropertyMultiple**, to Lift 1
+   "Mauve"'s `Car_Position`, `Car_Moving_Direction` and `Car_Door_Status`.
+2. A passenger presses 5 in the car. `Registered_Car_Call` lists 5. The car
+   locks its door (`Car_Door_Status` `SAFETY_LOCKED`), goes `UP`, and the
+   workstation hears `Car_Position` 2, 3, 4, 5 - one floor at a time, at the
+   car's speed. At 5 it stops: `STOPPED`, then the door `OPENING`, `OPENED`,
+   `CLOSING`, `CLOSED`, and the call leaves `Registered_Car_Call`. While the door
+   is open, `Landing_Door_Status` shows floor 5's landing door open
+   (cl. 12.59: "the status of a lift car door also reflects the status of the
+   corresponding landing door"). The car never moves with its door open.
+3. **Failure Mode - a door that fails to close.** Something blocks the doorway:
+   the closing door re-opens, again and again. After three tries the car
+   raises **`DOOR_CLOSING_FAULT`** in `Fault_Signals` (cl. 12.59.32: "A door is
+   failing to close") and stays where it is - its calls stay registered, not
+   served. The Lift's FAULT_LISTED fault algorithm (cl. 12.59: "For
+   reliability-evaluation, the FAULT_LISTED fault algorithm can be applied")
+   takes `Reliability` to `FAULTS_LISTED`, `Event_State` to `FAULT` and
+   `Status_Flags` FAULT, and the workstation receives a **to-fault
+   EventNotification** (event type CHANGE_OF_RELIABILITY, cl. 13.2.5.3). Clear
+   the doorway: the door closes, the fault clears with a to-normal
+   notification, and the car goes on.
+4. **The passenger alarm.** A passenger presses the alarm button: the Lift's
+   CHANGE_OF_STATE algorithm on `Passenger_Alarm` (cl. 12.59) sends a to-offnormal
+   **alarm**; GetEventInformation lists it; the operator acknowledges it with
+   AcknowledgeAlarm. Released, it returns to normal.
+5. Everything the workstation might try to change - `Car_Position`,
+   `Passenger_Alarm`, `Out_Of_Service`, any write at all - is refused: a monitor
+   presents, it does not accept modifications.
+
+Every step is printed on the console as it happens (`SIMULATION: car at floor
+3, up`, `Fault_Signals = { DOOR_CLOSING_FAULT }`, ...).
+
+### What is Simulation
+
+The lift car is **Simulation** (README, TUTORIAL and `simulation/` say so): a
+real B-EM reads its car from the elevator controller over that controller's own
+bus; this example has no elevator, so `simulation/ElevatorCar.cpp` stands in
+for one. It knows nothing about BACnet. It serves floors 1-8, moves one floor
+every 2 s, opens its door for 1 s, holds it 2 s, closes it for 1 s, and runs its
+stops collectively (onward while there is a stop ahead, then back). Simulated
+passengers keep it busy - after 3 s idle someone presses the next floor of a
+fixed tour - and the `s` key presses the car's alarm button.
+
+Everything BACnet does with the car is real: the Lift's properties are read
+from it, every change goes to the stack with `BACnetStack_UpdateValue` (which
+is what drives COV and both event algorithms), and the notifications go to
+Notification Class 1's recipients.
+
+The Wire Tests reach into the Simulation through a **test-only control
+channel** (`simulation/SimulationControl.cpp`): a loopback-only UDP socket,
+off unless the environment variable `BEM_SIMULATION_CONTROL_PORT` names a port.
+It presses buttons in the car (`call 5`, `alarm on`), blocks the doorway
+(`obstruct on`), stops the simulated passengers and speeds the car up for a
+test. A second test-only variable, `BEM_TEST_EVENT_RECIPIENT_PORT`, adds the
+test's workstation (127.0.0.1) to Notification Class 1 as a confirmed
+recipient - a monitor's recipients are set at commissioning, and this one has
+no writable `Recipient_List`. Neither is a command-line option, and neither
+changes what the device does on the BACnet network. Delete `simulation/` and
+read your elevator controller instead.
+
 ## F-COVM: SubscribeCOVPropertyMultiple (the headline B-EM capability)
 
 **Analog Input 1 "Bronze"** has both its `Present_Value` AND `Status_Flags`
@@ -105,6 +173,10 @@ nudge it with the up/down keys and watch. A plain SubscribeCOV on Bronze still
 works too (DS-COV-B): `SetPropertySubscribable` is not required for a standard
 object type's `Present_Value`, only for a second property or COVProperty on any
 property.
+
+Lift 1 "Mauve"'s `Car_Position`, `Car_Moving_Direction` and `Car_Door_Status`
+are subscribable the same way, so a monitoring client can follow the car with
+one SubscribeCOVPropertyMultiple (see [the scenario](#the-scenario-an-operator-watches-a-lift-car)).
 
 ## F-ELEVATOR: the elevator object family
 
@@ -134,20 +206,29 @@ read-only monitor leaves it out (`supportLandingCallStatus` is `false`, and
 only the read-only `Landing_Calls` list is enabled). That is part of how this
 device guarantees it accepts no command of any kind.
 
-## Intrinsic alarming: the Lift's Passenger_Alarm
+## Intrinsic alarming: the Lift's Passenger_Alarm and Fault_Signals
 
-**Lift 1 "Mauve"** arms an intrinsic **ChangeOfState** (boolean) algorithm on
-its `Passenger_Alarm` property: `Passenger_Alarm == true` is the OFFNORMAL
-condition. On each transition the stack sends an **EventNotification** to the
-recipients of **Notification Class 1 "Crimson"**.
+**Lift 1 "Mauve"** arms both algorithms 135-2024 cl. 12.59 names for a Lift,
+each reporting to **Notification Class 1 "Crimson"**'s recipients:
 
-`Passenger_Alarm` reflects a physical alarm button in the elevator car - no API
-in this stack makes it writable, and this device accepts no writes anyway - so
-this example **simulates** it instead of driving it from a client command: the
-main loop flips a simulated passenger-alarm condition every **30 seconds of
-uptime** and calls `BACnetStack_UpdateValue`, letting the stack's own algorithm
-decide whether to fire. No key press, no WriteProperty, is needed or possible;
-a monitor reports what is happening, not what a client told it to do.
+- an intrinsic **CHANGE_OF_STATE** algorithm on `Passenger_Alarm` ("Lift
+  objects that support intrinsic reporting shall apply the CHANGE_OF_STATE
+  event algorithm on the Passenger_Alarm property. The pAlarmValues parameter
+  shall contain the value TRUE"): a to-offnormal ALARM, priority 100, ack
+  required;
+- the **FAULT_LISTED** fault algorithm on `Fault_Signals` ("For
+  reliability-evaluation, the FAULT_LISTED fault algorithm can be applied"):
+  any active lift fault takes `Reliability` to `FAULTS_LISTED` and the Lift to
+  `FAULT`, notified with event type CHANGE_OF_RELIABILITY, priority 50.
+
+`Passenger_Alarm` reflects a physical alarm button in the car - no API in this
+stack makes it writable, and this device accepts no writes anyway. In this
+example the button is the `s` key (or the test-only control channel), and
+`Fault_Signals` comes from the car Simulation's own fault detection. Both call
+`BACnetStack_UpdateValue`, and the stack's algorithms decide whether to fire.
+Crimson's recipient is the local subnet broadcast, unconfirmed;
+`Number_Of_APDU_Retries` is 3, so a confirmed notification to a recipient that
+missed it is sent again.
 
 ## The device this example creates
 
@@ -158,10 +239,10 @@ Device 389015  "Chipkin Example B-EM"   (Vendor 389 - Chipkin Automation Systems
     ├── Multi-State Input 1        "Hot Pink"    read-only sensor (state 1..3)
     ├── Network Port 1             "Vermilion"   the BACnet/IP port (required)
     ├── Elevator Group 1           "Maroon"      groups Mauve; F-ELEVATOR
-    ├── Lift 1                     "Mauve"       fixed car position/doors (nothing moves); simulated Passenger_Alarm -> intrinsic ChangeOfState ALARM
+    ├── Lift 1                     "Mauve"       the (simulated) car: position, direction, door; CHANGE_OF_STATE on Passenger_Alarm, FAULT_LISTED on Fault_Signals
     ├── Escalator 1                "Mint"        not grouped (escalators aren't lifts)
     ├── Positive Integer Value 1   "Turquoise"   Maroon's Machine_Room_ID target (added before Maroon)
-    └── Notification Class 1       "Crimson"     routes Mauve's Passenger_Alarm events
+    └── Notification Class 1       "Crimson"     routes Mauve's alarm and fault events
 ```
 
 The three inputs plus the Network Port are the series' shared minimum;
@@ -296,9 +377,10 @@ While the example runs, these keys are available:
 | `q` | Quit. |
 | up arrow | Increase Analog Input 1 (`Bronze`) by 1.1 (also the F-COVM demonstration). |
 | down arrow | Decrease Analog Input 1 (`Bronze`) by 1.1. |
+| `s` | Simulation: press (or release) the car's passenger alarm button. |
 
-There is no other key - this device has no writable property, and the Lift's
-`Passenger_Alarm` alarm is simulated on a 30-second timer, not a command.
+There is no other key - this device has no writable property. The car moves by
+itself (simulated passengers); the console prints every floor and fault.
 
 ## Verify
 
@@ -318,13 +400,13 @@ With the
    confirm **one** notification carries both. Confirm a plain SubscribeCOV on
    Bronze also works.
 5. **F-ELEVATOR** - ReadProperty every required property of Maroon/Mauve/Mint;
-   confirm `Group_Members` on Maroon lists Mauve; confirm
-   `Assigned_Landing_Calls`, `Registered_Car_Call` and `Landing_Door_Status` on
-   Mauve each read back their one demonstration entry.
-6. **Alarming** - wait up to 30 seconds; confirm Mauve's `Event_State`
-   transitions and an EventNotification arrives when the simulated
-   `Passenger_Alarm` goes active, and again when it clears. AcknowledgeAlarm
-   and GetEventInformation both respond.
+   confirm `Group_Members` on Maroon lists Mauve; watch Mauve's
+   `Car_Position` change as the simulated passengers ride (or subscribe to it),
+   with `Registered_Car_Call` naming the floor the car is heading for.
+6. **Alarming** - press `s`; confirm Mauve's `Event_State` goes OFFNORMAL and an
+   EventNotification arrives, then press `s` again for the return to normal.
+   AcknowledgeAlarm and GetEventInformation both respond. (The door fault needs
+   the test-only control channel - see [Wire Tests](#wire-tests).)
 7. **Device management** - DeviceCommunicationControl `disable-initiation` /
    `enable` is accepted.
 
@@ -333,20 +415,28 @@ For a property-by-property review against the conformance statement, see
 
 ## Wire Tests
 
-Steps 1, 2 and 5 above, automated: a Python BACnet client drives the running
-example over BACnet/IP from outside it, the way a client discovers a device -
-Who-Is, the Device's `Object_List`, then for every object its `Property_List`
-and a ReadProperty of every property it lists. Every read must come back as a
-value; an Error, Reject or Abort fails the run. Python 3 standard library only:
+The scenario above, automated. Python clients - the Peers: an operator
+workstation that is also Crimson's event recipient, and a COV subscriber -
+drive the running example over BACnet/IP from outside it; the test plays the
+car's passengers through the Simulation's control channel. Python 3 standard
+library only:
 
 ```bash
 python3 tests/run_wire_tests.py --exe build/BACnetExampleBEM          # Linux/macOS
 python tests\run_wire_tests.py --exe build\Release\BACnetExampleBEM.exe   # Windows
 ```
 
-It ends with `ALL WIRE TESTS PASSED` (exit 0). CI runs it on Linux after the
-smoke test. [tests/README.md](tests/README.md) says what each check proves. It
-does not yet cover writes, COV, alarming or acknowledgement (steps 3, 4, 6, 7).
+| Script | Proves |
+|---|---|
+| `discovery_test.py` | every object and every property it lists reads as a value |
+| `car_monitor_test.py` | the Profile Function: the workstation follows the car floor by floor (COV and RPM), door cycle, speed, car calls, landing doors |
+| `car_fault_test.py` | Failure Mode: an obstructed door -> `DOOR_CLOSING_FAULT`, FAULT_LISTED, to-fault / to-normal notifications, a faulted car serves no stops |
+| `passenger_alarm_test.py` | the passenger alarm reported, listed and acknowledged; Failure Modes: acknowledging a non-alarm, and every write refused |
+
+It ends with `ALL WIRE TESTS PASSED` (exit 0), in about a minute. Ports: `--port`
+(default 48030) and `--port + 1` for the control channel. CI runs it on Linux
+after the smoke test. [tests/README.md](tests/README.md) says what each check
+proves and which mutation of `main.cpp` makes it fail.
 
 
 ## The BACnet profile example series

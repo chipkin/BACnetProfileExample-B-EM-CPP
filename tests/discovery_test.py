@@ -3,7 +3,7 @@
 # Public-domain example code (CC0) - see ../LICENSE.
 """B-EM discovery: read every property the elevator monitor says it has, the way a client does.
 
-    python3 tests/discovery_test.py [--exe build/BACnetExampleBEM] [--port 47861]
+    python3 tests/discovery_test.py [--exe build/BACnetExampleBEM] [--port 48030]
 
 What a BACnet client such as Chipkin BACnet Explorer does when it discovers a device,
 done over the wire from outside the example:
@@ -82,8 +82,8 @@ def parser():
     arguments = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     arguments.add_argument("--exe", default=str(wiretest.default_exe(REPOSITORY, "BACnetExampleBEM")),
                            help="path to BACnetExampleBEM (default: build/BACnetExampleBEM)")
-    arguments.add_argument("--port", type=int, default=47861,
-                           help="the elevator monitor's UDP port (default 47861)")
+    arguments.add_argument("--port", type=int, default=48030,
+                           help="the elevator monitor's UDP port (default 48030)")
     return arguments
 
 

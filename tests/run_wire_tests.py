@@ -3,7 +3,7 @@
 # Public-domain example code (CC0) - see ../LICENSE.
 """Run every B-EM Wire Test, one after another, and report one result.
 
-    python3 tests/run_wire_tests.py [--exe build/BACnetExampleBEM] [--port 47861]
+    python3 tests/run_wire_tests.py [--exe build/BACnetExampleBEM] [--port 48030]
 
 Exit code 0 = every check in every script passed.
 """
@@ -18,14 +18,14 @@ sys.path.insert(0, str(REPOSITORY))
 
 import wiretest  # noqa: E402  (the vendored harness at the repository root)
 
-SCRIPTS = ["discovery_test.py"]
+SCRIPTS = ["discovery_test.py", "car_monitor_test.py", "car_fault_test.py", "passenger_alarm_test.py"]
 
 
 def main():
     arguments = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     arguments.add_argument("--exe", default=str(wiretest.default_exe(REPOSITORY, "BACnetExampleBEM")),
                            help="path to BACnetExampleBEM (default: build/BACnetExampleBEM)")
-    arguments.add_argument("--port", type=int, default=47861, help="the elevator monitor's UDP port (default 47861)")
+    arguments.add_argument("--port", type=int, default=48030, help="the elevator monitor's UDP port (default 48030)")
     args = arguments.parse_args()
 
     outcomes = []
@@ -39,7 +39,7 @@ def main():
 
     print("\n===== summary =====")
     for script, returncode, totals in outcomes:
-        print(f"{'PASS' if returncode == 0 else 'FAIL'}  {script:24} {totals}")
+        print(f"{'PASS' if returncode == 0 else 'FAIL'}  {script:28} {totals}")
     failed = [script for script, returncode, _ in outcomes if returncode != 0]
     print("ALL WIRE TESTS PASSED" if not failed else f"FAILED: {', '.join(failed)}")
     return 1 if failed else 0

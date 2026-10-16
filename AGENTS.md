@@ -72,9 +72,12 @@ commands above.
 Interactive keys while running: `h` help, `q` quit, up/down nudge Analog Input
 1 (Bronze) - also the F-COVM demonstration (watch a SubscribeCOVPropertyMultiple
 subscription on Present_Value + Status_Flags fire together). There is no key
-that changes anything else: this device has no writable property, and the
-Lift's Passenger_Alarm alarm is simulated on a 30-second timer rather than any
-interactive command.
+that changes BACnet state: this device has no writable property. `s` is the
+Simulation's passenger alarm button. The lift car is Simulation
+(`simulation/`); the Wire Tests drive it through the test-only control channel
+(`BEM_SIMULATION_CONTROL_PORT`) and add a confirmed event recipient with
+`BEM_TEST_EVENT_RECIPIENT_PORT` - README "What is Simulation". Keep that label
+if you touch them.
 
 ## Conventions
 
@@ -118,10 +121,11 @@ interactive command.
   `AddRecipientToNotificationClass`) + `SetAlarmsAndEventsForObjectEnabled(...,
   true)` (6.x dropped that trailing argument's default - pass it explicitly).
   This example arms `SetIntrinsicChangeOfStateAlgorithmBool` on the Lift's
-  `Passenger_Alarm` - a property no API in this stack can write, so the
-  "drive the monitored value" step is a 30-second simulation timer in
-  `main()`'s loop, not a WriteProperty or a key, consistent with "read-only,
-  unconditionally" above.
+  `Passenger_Alarm` and `SetFaultListedAlgorithm` on its `Fault_Signals` - the
+  two algorithms cl. 12.59 names. Both monitored values come from the car
+  Simulation (the alarm button, the door that fails to close), never a
+  WriteProperty, consistent with "read-only, unconditionally" above; each change
+  is reported with `BACnetStack_UpdateValue`.
 - DeviceCommunicationControl (DM-DCC-B): the stack runs the enable/disable state
   machine; the `DeviceCommunicationControl` callback just validates
   `DCC_PASSWORD` and logs. This is a device-management service, not a property
@@ -156,13 +160,12 @@ after any change. Beyond them, verification is behavioural:
    Also confirm a plain SubscribeCOV on Analog Input 1 works (DS-COV-B).
 6. **F-ELEVATOR**: ReadProperty every Elevator Group / Lift / Escalator
    property (the generated objects-and-properties block is the checklist);
-   confirm `Group_Members` on Maroon lists Mauve; confirm the optional
-   `Assigned_Landing_Calls` / `Registered_Car_Call` / `Landing_Door_Status`
-   properties on Mauve each read back the one demonstration entry.
-7. **Alarming**: wait up to 30 seconds and confirm the Lift's `Event_State`
-   transitions and an EventNotification is sent when the simulated
-   `Passenger_Alarm` goes active, and again when it clears; AcknowledgeAlarm
-   and GetEventInformation both respond.
+   confirm `Group_Members` on Maroon lists Mauve; run
+   `tests/run_wire_tests.py` - `car_monitor_test.py` is the Profile Function
+   (the car followed over COV and RPM).
+7. **Alarming**: `tests/car_fault_test.py` (the FAULT_LISTED door fault) and
+   `tests/passenger_alarm_test.py` (CHANGE_OF_STATE, AcknowledgeAlarm,
+   GetEventInformation); by hand, press `s`.
 8. **Device management**: DCC `disable-initiation`/`enable` SimpleACKs; a wrong
    password (if set) is rejected.
 9. If you changed the objects or their properties, regenerate `docs/PICS.md`

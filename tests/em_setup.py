@@ -25,8 +25,6 @@ REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY))
 
 import wiretest  # noqa: E402  (the vendored harness at the repository root)
-import property_multiple  # noqa: E402
-from simulation_control import SimulationControl  # noqa: E402
 
 # Match main.cpp.
 DEVICE_INSTANCE = 389015
@@ -89,7 +87,7 @@ def start_monitor(args, recipient_port=None, label="elevator monitor"):
 def control(args):
     """The test's hands inside the simulated car; switches the simulated passengers off and
     speeds the car up, so every trip in a test is one the test asked for."""
-    hands = SimulationControl(args.port + 1)
+    hands = wiretest.SimulationControl(args.port + 1)
     hands.send("traffic off")
     hands.send(f"timing {TRAVEL_MS} {DOOR_MS} {DWELL_MS}")
     return hands
@@ -99,31 +97,26 @@ REQUEST_TIMEOUT = 0.5      # seconds; a loopback answer takes milliseconds
 REQUEST_ATTEMPTS = 3
 
 
-def ask(client, build_apdu, port):
-    """Send the confirmed request `build_apdu(invoke_id)` makes with `client` (a wiretest.Client
-    made with retries=0, or a Workstation); return the Answer. An unanswered request is sent again
-    after REQUEST_TIMEOUT, with a visible [RETRY] line, up to REQUEST_ATTEMPTS times - as a BACnet
-    client does. Windows loopback, on a loaded machine, was measured losing about one datagram in
-    700 before the example saw it (699 sent, 698 received); a 2-3 s timeout then lets the car move
-    on while the test waits, a short one does not."""
-    answer = None
-    for attempt in range(REQUEST_ATTEMPTS):
-        if attempt:
-            print(f"[RETRY] request unanswered after {REQUEST_TIMEOUT} s - sent again", flush=True)
-        answer = client.request(build_apdu, port, timeout=REQUEST_TIMEOUT)
-        if answer.answered:
-            break
-    return answer
+def client():
+    """A wiretest.Client whose unanswered requests are sent again after REQUEST_TIMEOUT, with a
+    visible [RETRY] line, up to REQUEST_ATTEMPTS times - as a BACnet client does. Windows
+    loopback, on a loaded machine, was measured losing about one datagram in 700 before the
+    example saw it (699 sent, 698 received); a 2-3 s timeout then lets the car move on while the
+    test waits, a short one does not."""
+    return wiretest.Client(retries=REQUEST_ATTEMPTS - 1, timeout=REQUEST_TIMEOUT)
+
+
+def workstation():
+    """A wiretest.Workstation (an event-notification recipient) that retries as client() does."""
+    return wiretest.Workstation(retries=REQUEST_ATTEMPTS - 1, timeout=REQUEST_TIMEOUT)
 
 
 def read(client, port, object_identifier, property_identifier, array_index=None):
-    return ask(client, lambda invoke_id: wiretest.read_property_request(
-        invoke_id, *object_identifier, property_identifier, array_index), port)
+    return client.read_property(port, *object_identifier, property_identifier, array_index)
 
 
 def write(client, port, object_identifier, property_identifier, value_octets, priority=None):
-    return ask(client, lambda invoke_id: wiretest.write_property_request(
-        invoke_id, *object_identifier, property_identifier, value_octets, priority), port)
+    return client.write_property(port, *object_identifier, property_identifier, value_octets, priority)
 
 
 CAR_PROPERTIES = (PROPERTY_CAR_POSITION, PROPERTY_CAR_MOVING_DIRECTION, PROPERTY_CAR_DOOR_STATUS)
@@ -132,16 +125,15 @@ CAR_PROPERTIES = (PROPERTY_CAR_POSITION, PROPERTY_CAR_MOVING_DIRECTION, PROPERTY
 def car_snapshot(client, port):
     """(Car_Position, Car_Moving_Direction, Car_Door_Status[1]) from ONE ReadPropertyMultiple,
     so the three are consistent; None if it was not answered."""
-    answer = ask(client, lambda invoke_id: property_multiple.read_property_multiple_request(
-        invoke_id, [(*LIFT, CAR_PROPERTIES)]), port)
-    results = property_multiple.parse_read_property_multiple_ack(answer.frame.payload) if answer.answered else None
+    results = wiretest.services.parse_read_property_multiple_ack(
+        client.read_property_multiple(port, [(*LIFT, CAR_PROPERTIES)]))
     if not results or LIFT not in results:
         return None
     lift = results[LIFT]
     door = lift.get(PROPERTY_CAR_DOOR_STATUS)
     door_values = wiretest.decoded_values(door) if isinstance(door, bytes) else []
-    return (property_multiple.value_of(lift.get(PROPERTY_CAR_POSITION)),
-            property_multiple.value_of(lift.get(PROPERTY_CAR_MOVING_DIRECTION)),
+    return (wiretest.services.decode_result(lift.get(PROPERTY_CAR_POSITION)),
+            wiretest.services.decode_result(lift.get(PROPERTY_CAR_MOVING_DIRECTION)),
             door_values[0] if door_values else None)
 
 
@@ -169,7 +161,7 @@ def describe(answer):
 
 def get_event_information(workstation, args):
     """(summaries, Answer) from one GetEventInformation; summaries is None if it was not a ComplexACK."""
-    answer = ask(workstation, lambda invoke_id: wiretest.alarm.get_event_information_request(invoke_id), args.port)
+    answer = workstation.request(lambda invoke_id: wiretest.alarm.get_event_information_request(invoke_id), args.port)
     if answer.frame is None or answer.frame.pdu_type != wiretest.PDU_COMPLEX_ACK:
         return None, answer
     summaries, _ = wiretest.alarm.parse_event_summaries(answer.frame.payload)
@@ -188,7 +180,7 @@ def acknowledge(workstation, args, object_identifier, event_state, time_stamp, s
     now = time.localtime()
     time_of_acknowledgment = (bytes([now.tm_year - 1900, now.tm_mon, now.tm_mday, now.tm_wday + 1]),
                               bytes([now.tm_hour, now.tm_min, now.tm_sec, 0]))
-    return ask(workstation, lambda invoke_id: wiretest.alarm.acknowledge_alarm_request(
+    return workstation.request(lambda invoke_id: wiretest.alarm.acknowledge_alarm_request(
         invoke_id, TEST_RECIPIENT_PROCESS_IDENTIFIER, *object_identifier, event_state, time_stamp, source,
         time_of_acknowledgment), args.port)
 

@@ -55,6 +55,7 @@ control system." It now monitors a moving lift car and reports its faults.
 - `Assigned_Landing_Calls` is always empty (a monitor's group takes no landing
   calls) instead of a fixed demonstration entry.
 - Application_Software_Version 1.2.0.
+- Wire Tests use the shared `wiretest/` 0.7.0: `tests/simulation_control.py`, `property_multiple.py` and `cov_multiple.py` are folded into it (`wiretest.SimulationControl`, `wiretest.services`), and `em_setup.ask()` is `wiretest.Client` / `Workstation(retries=2, timeout=0.5)`.
 
 ## [1.1.0] - unreleased
 

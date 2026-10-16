@@ -44,8 +44,10 @@ buttons inside the simulated car (`call 5`, `alarm on`), blocks its doorway
 (500 ms per floor, 250 ms per door move, 600 ms dwell). A test that sets
 `BEM_TEST_EVENT_RECIPIENT_PORT` becomes Crimson's second, confirmed recipient.
 
-Every request goes through `em_setup.ask()`: an unanswered request is sent
-again after 0.5 s with a visible `[RETRY]` line. On Windows, on a loaded
+Every request goes through a client from `em_setup.client()` /
+`em_setup.workstation()` - `wiretest.Client` / `wiretest.Workstation` with
+`retries=2, timeout=0.5` (wiretest 0.7.0): an unanswered request is sent again
+after 0.5 s, same invoke id, with a visible `[RETRY]` line. On Windows, on a loaded
 machine, loopback UDP was measured losing about one datagram in 700 before the
 example saw it (699 sent, 698 received by the device); a short retry keeps the
 car from moving on while the test waits. The ordered checks (floor by floor,

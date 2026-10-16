@@ -32,7 +32,6 @@ import sys
 import time
 
 import em_setup as setup  # first: it puts the vendored wiretest/ on sys.path
-import cov_multiple
 from em_setup import (DIRECTION_DOWN, DIRECTION_STOPPED, DIRECTION_UP, DOOR_CLOSED, DOOR_CLOSING, DOOR_OPENED,
                       DOOR_OPENING, DOOR_SAFETY_LOCKED, LIFT)
 import wiretest
@@ -45,11 +44,11 @@ class Subscriber:
     """The workstation's COV subscription on the car, and the changes it has heard, in order."""
 
     def __init__(self):
-        self.client = wiretest.Client()
+        self.client = setup.client()
         self.heard = []          # [(property identifier, value)], in arrival order
 
     def subscribe(self, port):
-        return setup.ask(self.client, lambda invoke_id: cov_multiple.subscribe_cov_property_multiple_request(
+        return self.client.request(lambda invoke_id: wiretest.services.subscribe_cov_property_multiple_request(
             invoke_id, COV_PROCESS_IDENTIFIER, False, 600, [(*LIFT, list(setup.CAR_PROPERTIES))]), port)
 
     def listen(self, seconds):
@@ -59,8 +58,8 @@ class Subscriber:
         self.client.collect(seconds)
         changes = []
         for frame in self.client.frames:
-            if frame.ok and cov_multiple.is_cov_notification_multiple(frame):
-                notification = cov_multiple.CovNotificationMultiple(frame)
+            if frame.ok and wiretest.services.is_cov_notification_multiple(frame):
+                notification = wiretest.services.CovNotificationMultiple(frame)
                 if (notification.process_identifier, notification.initiating_device) != (
                         COV_PROCESS_IDENTIFIER, (wiretest.OBJECT_TYPE_DEVICE, setup.DEVICE_INSTANCE)):
                     changes.append(("stranger", notification.process_identifier))
@@ -123,7 +122,7 @@ def trip(name, workstation, subscriber, hands, args, start, finish, direction):
 def main():
     args = setup.parser(__doc__).parse_args()
     example = setup.start_monitor(args)
-    workstation = wiretest.Client()   # setup.ask() does the retrying
+    workstation = setup.client()      # retries a lost request, visibly
     subscriber = Subscriber()
     hands = None
     try:

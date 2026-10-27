@@ -9,9 +9,10 @@ floor - and presents it over BACnet: **ReadProperty / ReadPropertyMultiple**,
 move), **intrinsic alarms** (an EventNotification when a passenger presses the
 car's alarm button, and a fault notification when a car door fails to close),
 **AcknowledgeAlarm**, **GetEventInformation** and
-**DeviceCommunicationControl**. It is **read-only**: this device accepts **no
-WriteProperty, WritePropertyMultiple, Schedule, ReinitializeDevice or
-TimeSynchronization of any kind**.
+**DeviceCommunicationControl**. It is **read-only**, but for one property: this
+device accepts **no WritePropertyMultiple, Schedule, ReinitializeDevice or
+TimeSynchronization of any kind**, and WriteProperty only for Notification Class
+1's `Recipient_List`, so a commissioning tool can choose who hears the alarms.
 
 **[Download a prebuilt binary](https://github.com/chipkin/BACnetProfileExample-B-EM-CPP/releases)**
 (Windows and Linux x64) - or build it yourself, see [Build](#build) below.
@@ -21,9 +22,9 @@ TimeSynchronization of any kind**.
 - **[docs/PICS.md](docs/PICS.md)** - the Protocol Implementation Conformance
   Statement: every object, every property, and who answers it.
 
-> **Versions:** this document describes **example v1.2.0**, built and verified
-> against **CAS BACnet Stack 6.0.23** (`6.x` @ `64b2cfac5`), at
-> **Protocol_Revision 30**, with the vendored `common/` helper at **v3.4.0**.
+> **Versions:** this document describes **example v1.3.0**, built and verified
+> against **CAS BACnet Stack 6.0.23** (`6.x` @ `69b6249f`), at
+> **Protocol_Revision 30**, with the vendored `common/` helper at **v3.5.0**.
 > Running the example prints all three - if what it prints disagrees with this
 > line, trust the program and check `CHANGELOG.md`.
 
@@ -63,7 +64,9 @@ which is the point of a profile example.
 
 No WriteProperty, WritePropertyMultiple, Schedule, ReinitializeDevice or
 TimeSynchronization BIBB is in this profile, and **none is implemented** - a
-B-EM is deliberately read-only. See [docs/PICS.md](docs/PICS.md) for the full
+B-EM is deliberately read-only. The one exception is commissioning: WriteProperty
+is executed for Notification Class 1's `Recipient_List` alone (not the DS-WP-B
+BIBB). See [docs/PICS.md](docs/PICS.md) for the full
 statement, including which services are explicitly *not* enabled.
 
 ### Services (executed / B-side)
@@ -71,6 +74,7 @@ statement, including which services are explicitly *not* enabled.
 | Service | Notes |
 |---------|-------|
 | ReadProperty, ReadPropertyMultiple | Responds to property reads (DS-RP-B, DS-RPM-B). |
+| WriteProperty | Notification Class 1's `Recipient_List` only (commissioning the alarm recipients); any other write is refused. |
 | SubscribeCOV, SubscribeCOVPropertyMultiple | Plain COV plus multi-property COV (DS-COV-B, DS-COVM-B - see F-COVM below). |
 | Who-Is / I-Am, Who-Has / I-Have | Answers discovery requests (DM-DDB-B, DM-DOB-B). This device does not initiate its own Who-Is on start-up (no DM-DDB-A), but it does send an I-Am. |
 | DeviceCommunicationControl | Accepts enable / disable-initiation, with an optional password (DM-DCC-B). |
@@ -128,8 +132,10 @@ BMS front end, CAS BACnet Explorer, or the Python workstation in
    **alarm**; GetEventInformation lists it; the operator acknowledges it with
    AcknowledgeAlarm. Released, it returns to normal.
 5. Everything the workstation might try to change - `Car_Position`,
-   `Passenger_Alarm`, `Out_Of_Service`, any write at all - is refused: a monitor
-   presents, it does not accept modifications.
+   `Passenger_Alarm`, `Out_Of_Service`, any write at all - is refused
+   (write-access-denied), except one: Notification Class 1's `Recipient_List`,
+   which a commissioning tool may write to choose who hears the alarms. A
+   monitor presents, it does not accept modifications of the installation.
 
 Every step is printed on the console as it happens (`SIMULATION: car at floor
 3, up`, `Fault_Signals = { DOOR_CLOSING_FAULT }`, ...).
@@ -157,8 +163,9 @@ It presses buttons in the car (`call 5`, `alarm on`), blocks the doorway
 (`obstruct on`), stops the simulated passengers and speeds the car up for a
 test. A second test-only variable, `BEM_TEST_EVENT_RECIPIENT_PORT`, adds the
 test's workstation (127.0.0.1) to Notification Class 1 as a confirmed
-recipient - a monitor's recipients are set at commissioning, and this one has
-no writable `Recipient_List`. Neither is a command-line option, and neither
+recipient, so the tests need not write `Recipient_List` first (a real monitor's
+recipients are set at commissioning, by writing `Recipient_List`;
+`recipient_list_test.py` does that). Neither is a command-line option, and neither
 changes what the device does on the BACnet network. Delete `simulation/` and
 read your elevator controller instead.
 
@@ -172,7 +179,8 @@ gets **one multi-property notification** whenever Bronze's value changes -
 nudge it with the up/down keys and watch. A plain SubscribeCOV on Bronze still
 works too (DS-COV-B): `SetPropertySubscribable` is not required for a standard
 object type's `Present_Value`, only for a second property or COVProperty on any
-property.
+property. Bronze's `COV_Increment` is 1.0 (deg C), so each 1.1 nudge notifies;
+clause 12.2 requires it on an Analog Input that supports COV reporting.
 
 Lift 1 "Mauve"'s `Car_Position`, `Car_Moving_Direction` and `Car_Door_Status`
 are subscribable the same way, so a monitoring client can follow the car with
@@ -222,11 +230,12 @@ each reporting to **Notification Class 1 "Crimson"**'s recipients:
   `FAULT`, notified with event type CHANGE_OF_RELIABILITY, priority 50.
 
 `Passenger_Alarm` reflects a physical alarm button in the car - no API in this
-stack makes it writable, and this device accepts no writes anyway. In this
+stack makes it writable, and this device accepts no write to the installation. In this
 example the button is the `s` key (or the test-only control channel), and
 `Fault_Signals` comes from the car Simulation's own fault detection. Both call
 `BACnetStack_UpdateValue`, and the stack's algorithms decide whether to fire.
-Crimson's recipient is the local subnet broadcast, unconfirmed;
+Crimson's default recipient is the local subnet broadcast, unconfirmed; its
+`Recipient_List` is writable, so a commissioning tool can replace it;
 `Number_Of_APDU_Retries` is 3, so a confirmed notification to a recipient that
 missed it is sent again.
 
@@ -333,12 +342,12 @@ CMake at it: `cmake -B build -S . -D CAS_STACK_DIR=/path/to/cas-bacnet-stack`.
 Expected output:
 
 ```
-BACnet B-EM (Elevator Monitor) Example - C++ v1.1.0
+BACnet B-EM (Elevator Monitor) Example - C++ v1.3.0
 CAS BACnet Stack version: 6.0.23.0
-Common helper (common/) version: 3.4.0
+Common helper (common/) version: 3.5.0
 FYI: Listening for BACnet/IP on UDP port 47808 (Network Port 1).
 TX 21 bytes to 192.168.3.255:47808 (broadcast) (Network Port 1)
-FYI: Device 389015 ("Chipkin Example B-EM") ready. Vendor ID 389. Read-only monitor - no WriteProperty of any kind is accepted. Press 'h' for help.
+FYI: Device 389015 ("Chipkin Example B-EM") ready. Vendor ID 389. Read-only monitor - the only write accepted is Notification Class 1's Recipient_List. Press 'h' for help.
 ```
 
 The `TX` line is the start-up I-Am the device broadcasts to announce itself -
@@ -364,6 +373,8 @@ firewall. To use a different port, pass `--port` (see below).
 |--------|---------|---------|
 | `--port <n>` | `47808` | UDP port to listen on (BACnet/IP). |
 | `--deviceID <n>` | `389015` | The device's BACnet instance number (BACnet requires this to be configurable). |
+| `--deviceName <text>` | `Chipkin Example B-EM` | The Device object's `Object_Name`, 1..255 bytes, no control characters. It must be unique across the BACnet internetwork, so give every unit its own (BACnet requires it to be configurable, like the instance). An invalid value prints a warning and keeps the default. |
+| `--xml` | off | Print every received and sent BACnet message as an indented XML block instead of a one-line summary (very verbose; for protocol debugging). |
 | `--help`, `-h` | - | Show usage and exit. |
 | `--version` | - | Print the example, stack, and `common/` helper versions, then exit. |
 
@@ -379,7 +390,8 @@ While the example runs, these keys are available:
 | down arrow | Decrease Analog Input 1 (`Bronze`) by 1.1. |
 | `s` | Simulation: press (or release) the car's passenger alarm button. |
 
-There is no other key - this device has no writable property. The car moves by
+There is no other key - the one writable property, `Recipient_List`, is written
+over BACnet. The car moves by
 itself (simulated passengers); the console prints every floor and fault.
 
 ## Verify
@@ -392,8 +404,10 @@ With the
    "Mauve", Escalator "Mint", Positive Integer Value "Turquoise" and
    Notification Class "Crimson". `Object_List` lists them all;
    `Protocol_Revision` is `30`.
-3. **Confirm NO write is accepted anywhere** - WriteProperty to any property of
-   any object, and WritePropertyMultiple, are both rejected as an unsupported
+3. **Confirm the only write is the alarm recipients** - WriteProperty to any
+   property of any object is refused with write-access-denied, except
+   Notification Class 1's `Recipient_List` (a written list lasts until the
+   example restarts). WritePropertyMultiple is rejected as an unsupported
    service.
 4. **F-COVM** - SubscribeCOVPropertyMultiple naming Analog Input 1 (Bronze)'s
    `Present_Value` AND `Status_Flags`; nudge the value (up/down keys) and
@@ -431,10 +445,11 @@ python tests\run_wire_tests.py --exe build\Release\BACnetExampleBEM.exe   # Wind
 | `discovery_test.py` | every object and every property it lists reads as a value |
 | `car_monitor_test.py` | the Profile Function: the workstation follows the car floor by floor (COV and RPM), door cycle, speed, car calls, landing doors |
 | `car_fault_test.py` | Failure Mode: an obstructed door -> `DOOR_CLOSING_FAULT`, FAULT_LISTED, to-fault / to-normal notifications, a faulted car serves no stops |
-| `passenger_alarm_test.py` | the passenger alarm reported, listed and acknowledged; Failure Modes: acknowledging a non-alarm, and every write refused |
+| `passenger_alarm_test.py` | the passenger alarm reported, listed and acknowledged; Failure Modes: acknowledging a non-alarm, and every write to the installation refused |
+| `recipient_list_test.py` | commissioning: Notification Class 1's `Recipient_List` written, read back, and used for the next alarm; the default restored; a wrong datatype refused |
 
 It ends with `ALL WIRE TESTS PASSED` (exit 0), in about a minute. Ports: `--port`
-(default 48030) and `--port + 1` for the control channel. CI runs it on Linux
+(default 47832) and `--port + 1` for the control channel. CI runs it on Linux
 after the smoke test. [tests/README.md](tests/README.md) says what each check
 proves and which mutation of `main.cpp` makes it fail.
 

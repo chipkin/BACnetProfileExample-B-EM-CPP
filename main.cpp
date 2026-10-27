@@ -9,10 +9,12 @@
 // under an Elevator Group) with COV and intrinsic alarming. The Lift follows a
 // SIMULATED car (simulation/ElevatorCar.cpp) as it moves floor to floor: this
 // is the Profile Function, 135-2024 L.13.3 - "A B-EM device performs monitoring
-// of an elevator control system." It accepts NO writes
-// of any kind - there is no WriteProperty, WritePropertyMultiple, Schedule,
-// ReinitializeDevice or TimeSynchronization anywhere in this device, by design:
-// a monitor only reports what the elevator installation is doing.
+// of an elevator control system." It accepts NO writes to the elevator
+// installation - no WritePropertyMultiple, Schedule, ReinitializeDevice or
+// TimeSynchronization, by design: a monitor only reports what the installation
+// is doing. The ONE writable property is Notification Class 1's Recipient_List,
+// so a commissioning tool can choose who hears the alarms (WriteProperty is
+// executed for that alone; every other write is refused, write-access-denied).
 //
 // A B-EM (ANSI/ASHRAE 135, Annex L.13) must support:
 //
@@ -52,7 +54,8 @@
 // Lift's Passenger_Alarm. Each object has a colour name (the convention shared
 // across this example series):
 //
-//     Device 389015              "Chipkin Example B-EM"      (instance configurable with --deviceID)
+//     Device 389015              "Chipkin Example B-EM"      (instance configurable with --deviceID,
+//                                                             Object_Name with --deviceName)
 //     Analog Input  1            "Bronze"       (REAL, degrees Celsius; read-only)
 //     Binary Input  1            "Emerald"      (active / inactive; read-only)
 //     Multi-State Input 1        "Hot Pink"     (state 1..3; read-only)
@@ -106,7 +109,7 @@
 // up/down = nudge Analog Input 1 by +/-1.1 (also the F-COVM demonstration: watch
 // a COVPropertyMultiple subscription fire on Present_Value AND Status_Flags
 // together), s = press/release the car's passenger alarm button (Simulation).
-// Command line: --port <n>, --deviceID <n>. The Wire Tests use two TEST-ONLY
+// Command line: --port <n>, --deviceID <n>, --deviceName <text>, --xml. The Wire Tests use two TEST-ONLY
 // environment variables, BEM_SIMULATION_CONTROL_PORT and
 // BEM_TEST_EVENT_RECIPIENT_PORT (README "What is Simulation"); neither changes
 // what this device does on the BACnet network.
@@ -145,7 +148,7 @@ using namespace CASBACnetStackExampleConstants;
 // 1. Example + device configuration
 // -----------------------------------------------------------------------------
 static const char* APP_NAME = "BACnet B-EM (Elevator Monitor) Example - C++";
-static const char* APP_VERSION = "1.2.0";
+static const char* APP_VERSION = "1.3.0";
 
 // The device instance. BACnet requires this to be configurable, so it defaults
 // to 389015 and can be overridden on the command line with --deviceID. Keep it
@@ -166,24 +169,27 @@ static uint32_t g_deviceInstance = 389015;
 // Update VENDOR_NAME below to match.
 static const uint32_t VENDOR_IDENTIFIER = 389;
 
-// The Device object's Object_Name.
+// The Device object's Object_Name - the DEFAULT one.
 //
 // THIS IS THE ONE THAT WILL BITE YOU. Object_Name must be unique across the
-// whole BACnet internetwork, and here it is a COMPILE-TIME constant. The
-// device instance is runtime-configurable via --deviceID (see g_deviceInstance
-// above), so it is easy to ship two units, configure their instances
-// correctly, and still have BOTH announce Object_Name "Chipkin Example B-EM" - a spec
-// violation, and a hard BTL failure. In a real product Object_Name must be
-// per-unit configurable too: derive it from a serial number, DIP switches, a
-// config file, or add a --deviceName argument.
+// whole BACnet internetwork (cl. 12.1.1.4), so it must be per-unit configurable,
+// exactly like the instance. This example takes it at start-up with
+// --deviceName <text> (common/ ParseDeviceNameArg, read into g_deviceName in
+// main()); DEVICE_NAME is only what a unit announces when nobody configured it.
+// Ship two units without --deviceName and BOTH announce the same Object_Name -
+// a spec violation, and a hard BTL failure. In your product, configure the name
+// per unit (a serial number, DIP switches, a config file, or this argument) and
+// change the default below to something that says "not configured yet".
 static const char* DEVICE_NAME = "Chipkin Example B-EM";
+static const char* g_deviceName = DEVICE_NAME; // --deviceName, or the default
 
 // The Device object's Description. Change it to what YOUR device actually is;
 // this string describes this tutorial.
 static const char* DEVICE_DESCRIPTION =
     "Chipkin CAS BACnet Stack example - B-EM (Elevator Monitor) profile. "
-    "Read-only: DS-RP/RPM-B, DS-COV-B, DS-COVM-B, intrinsic alarming "
-    "(AE-N-I-B / AE-ACK-B / AE-INFO-B), DM-DCC-B. Accepts no WriteProperty.";
+    "Read-only monitor: DS-RP/RPM-B, DS-COV-B, DS-COVM-B, intrinsic alarming "
+    "(AE-N-I-B / AE-ACK-B / AE-INFO-B), DM-DCC-B. WriteProperty only for the "
+    "alarm Recipient_List.";
 
 // Device identity strings (read by clients, and used to populate I-Am).
 //   VENDOR_NAME - your company name; it must match VENDOR_IDENTIFIER above.
@@ -240,6 +246,17 @@ static uint16_t g_bacnetIpUdpPort = 47808;
 // value: a SubscribeCOVPropertyMultiple naming Present_Value AND Status_Flags
 // fires one multi-property notification when this changes.
 static float g_analogInput1Value = 21.5f;
+
+// Analog Input 1's COV_Increment (cl. 12.2.16): the smallest Present_Value change
+// that sends a COV notification to a SubscribeCOV subscriber. Analog Input 1
+// supports COV reporting, so cl. 12.2 footnote 2 REQUIRES this property; the stack
+// leaves it absent unless the application enables it (see the setup below). 1.0
+// deg C: each up/down nudge (1.1) notifies. Not writable.
+static const uint32_t PROPERTY_IDENTIFIER_COV_INCREMENT = 22;
+static const float ANALOG_INPUT_COV_INCREMENT = 1.0f;
+
+// Notification Class 1's Recipient_List (cl. 12.21.8): the one writable property.
+static const uint32_t PROPERTY_IDENTIFIER_RECIPIENT_LIST = 102;
 
 // -----------------------------------------------------------------------------
 // F-ELEVATOR: object-type / property-identifier numbers not already in
@@ -348,10 +365,13 @@ static const uint8_t NC_PRIORITY_TO_NORMAL = 200;
 // Where Mauve's alarms are sent. See B-AAC's main.cpp for the full rationale -
 // this example seeds the ADDRESS form, defaulting to the LOCAL SUBNET BROADCAST
 // with UNCONFIRMED notifications, so any BACnet client on the subnet sees the
-// alarm without us knowing its address ahead of time. Unlike B-AAC (AE-CRL-B),
-// this profile does NOT make Recipient_List writable - B-EM has no writable
-// property anywhere - so the recipient seeded here is the only one, for the life
-// of the process.
+// alarm without us knowing its address ahead of time. This is the DEFAULT:
+// Recipient_List is WRITABLE (as in B-AAC), so a commissioning tool can replace
+// it with the operator workstations that should hear the alarms. Clause 12.21
+// fixes the default only for a list that is NOT writable; a writable one keeps
+// this delivery design. A written list lasts for the life of the process - like
+// every other setting of this example (command-line options), nothing is saved
+// to disk, so a restart seeds this default again.
 static const uint32_t RECIPIENT_PROCESS_IDENTIFIER = 1;
 static const bool RECIPIENT_USE_BROADCAST = true;
 static uint8_t RECIPIENT_IP[4] = { 0, 0, 0, 0 };  // used when not broadcasting
@@ -359,7 +379,7 @@ static uint8_t RECIPIENT_IP[4] = { 0, 0, 0, 0 };  // used when not broadcasting
 // TEST ONLY: when this environment variable holds a UDP port, Crimson gets a
 // SECOND recipient, 127.0.0.1:<port>, sent CONFIRMED notifications - the Wire
 // Tests' operator workstation (tests/). A real B-EM's recipients are set at
-// commissioning; this one has no writable Recipient_List (no writes at all).
+// commissioning, by writing Recipient_List (tests/recipient_list_test.py does).
 static const char* TEST_EVENT_RECIPIENT_PORT_VARIABLE = "BEM_TEST_EVENT_RECIPIENT_PORT";
 static const uint32_t TEST_RECIPIENT_PROCESS_IDENTIFIER = 2;
 // TEST ONLY: the simulation control channel (simulation/SimulationControl.h).
@@ -449,6 +469,12 @@ bool GetPropertyReal(const uint32_t deviceInstance, const uint16_t objectType,
         // NOT directly from a slow/blocking device: this callback runs on the
         // BACnetStack_Tick() thread, so blocking it delays all BACnet processing.
         *value = g_analogInput1Value;
+        return true;
+    }
+    if (objectType == OBJECT_TYPE_ANALOG_INPUT &&
+        objectInstance == ANALOG_INPUT_INSTANCE &&
+        propertyIdentifier == PROPERTY_IDENTIFIER_COV_INCREMENT) {
+        *value = ANALOG_INPUT_COV_INCREMENT;
         return true;
     }
     return false;
@@ -763,7 +789,7 @@ bool GetPropertyCharString(const uint32_t deviceInstance, const uint16_t objectT
     // Object_Name - the colour name for each object.
     if (propertyIdentifier == PROPERTY_IDENTIFIER_OBJECT_NAME) {
         if (objectType == OBJECT_TYPE_DEVICE && objectInstance == g_deviceInstance) {
-            return ReturnCharacterString(DEVICE_NAME, value, valueElementCount, maxElementCount, encodingType);
+            return ReturnCharacterString(g_deviceName, value, valueElementCount, maxElementCount, encodingType);
         }
         if (objectType == OBJECT_TYPE_ANALOG_INPUT && objectInstance == ANALOG_INPUT_INSTANCE) {
             return ReturnCharacterString("Bronze", value, valueElementCount, maxElementCount, encodingType);
@@ -959,7 +985,7 @@ bool GetSequenceLiftLandingDoorStatus(const uint32_t deviceInstance, const uint3
 // A management station sends DeviceCommunicationControl to tell a device to stop
 // or resume communicating. This is NOT a write to any BACnet object property -
 // it is a device-management service every profile above B-ASC must support, and
-// it does not conflict with "this device accepts no WriteProperty". The stack
+// it does not conflict with "this device accepts no writes to the installation". The stack
 // runs the actual enable/disable state machine; this callback validates the
 // optional password and logs. See B-AAC's main.cpp for the full explanation of
 // the errorCode contract on this callback (it has NO fallback - every false
@@ -1191,11 +1217,18 @@ int main(int argc, char** argv) {
     }
 
     // --- Command line + version --------------------------------------------
-    if (CASExampleHelper::HandleHelpAndVersionArgs(argc, argv, APP_NAME, APP_VERSION)) {
+    // The help lists only the options this example reads: no --dcc-password (the
+    // DeviceCommunicationControl password is DCC_PASSWORD in this file, not a
+    // command-line option), and --deviceName (read below).
+    if (CASExampleHelper::HandleHelpAndVersionArgs(argc, argv, APP_NAME, APP_VERSION,
+                                                   false,   // no --dcc-password
+                                                   true)) { // --deviceName
         return 0;
     }
     const uint16_t port = CASExampleHelper::ParsePortArg(argc, argv, 47808);
     g_deviceInstance = CASExampleHelper::ParseDeviceIdArg(argc, argv, g_deviceInstance);
+    g_deviceName = CASExampleHelper::ParseDeviceNameArg(argc, argv, DEVICE_NAME);
+    CASExampleHelper::ParseXmlLogArg(argc, argv); // --xml: dump every RX/TX frame as XML instead of one line (off by default)
     CASExampleHelper::PrintVersion(APP_NAME, APP_VERSION);
 
     // --- Bind the BACnet/IP socket -----------------------------------------
@@ -1228,8 +1261,8 @@ int main(int argc, char** argv) {
     BACnetStack_RegisterCallbackGetSequenceLiftLandingDoorStatus(GetSequenceLiftLandingDoorStatus);
     // Device-management + alarming callbacks this profile needs. NOTE: there is
     // NO BACnetStack_RegisterCallbackSetProperty* call anywhere in this file -
-    // this device has no writable property, so none of the Set callbacks are
-    // ever registered.
+    // the one writable property, Notification Class 1's Recipient_List, is held
+    // by the stack itself, so none of the Set callbacks are ever registered.
     BACnetStack_RegisterCallbackDeviceCommunicationControl(DeviceCommunicationControl); // DM-DCC-B
     BACnetStack_RegisterCallbackAcknowledgeAlarm(AcknowledgeAlarm);                     // AE-ACK-B
 
@@ -1240,12 +1273,15 @@ int main(int argc, char** argv) {
     }
 
     // Enable the services a B-EM must execute. We set each one explicitly so the
-    // profile requirements are obvious. There is deliberately NO WriteProperty /
+    // profile requirements are obvious. There is deliberately NO
     // WritePropertyMultiple / ReinitializeDevice / TimeSynchronization here - a
-    // B-EM monitor never accepts any of those.
+    // B-EM monitor never accepts any of those. WriteProperty is executed ONLY so
+    // Notification Class 1's Recipient_List can be commissioned (it is the one
+    // writable property; the stack refuses every other write, write-access-denied).
     const struct { uint32_t service; const char* name; } services[] = {
         { SERVICE_READ_PROPERTY,                 "ReadProperty (DS-RP-B)" },
         { SERVICE_READ_PROPERTY_MULTIPLE,        "ReadPropertyMultiple (DS-RPM-B)" },
+        { SERVICE_WRITE_PROPERTY,                "WriteProperty (Recipient_List only)" },
         { SERVICE_DEVICE_COMMUNICATION_CONTROL,  "DeviceCommunicationControl (DM-DCC-B)" },
         { SERVICE_ACKNOWLEDGE_ALARM,             "AcknowledgeAlarm (AE-ACK-B)" },
         { SERVICE_GET_EVENT_INFORMATION,         "GetEventInformation (AE-INFO-B)" },
@@ -1320,6 +1356,13 @@ int main(int argc, char** argv) {
     if (!BACnetStack_SetPropertyEnabled(g_deviceInstance, OBJECT_TYPE_MULTI_STATE_INPUT,
                                         MULTI_STATE_INPUT_INSTANCE, PROPERTY_IDENTIFIER_STATE_TEXT, true)) {
         printf("Error: Failed to enable State_Text on Multi-State Input 1 (Hot Pink).\n");
+        return 1;
+    }
+    // Analog Input 1 (Bronze) supports COV reporting (DS-COV-B), so its COV_Increment
+    // is required (cl. 12.2 footnote 2); GetPropertyReal serves the value.
+    if (!BACnetStack_SetPropertyEnabled(g_deviceInstance, OBJECT_TYPE_ANALOG_INPUT,
+                                        ANALOG_INPUT_INSTANCE, PROPERTY_IDENTIFIER_COV_INCREMENT, true)) {
+        printf("Error: Failed to enable COV_Increment on Analog Input 1 (Bronze).\n");
         return 1;
     }
 
@@ -1447,8 +1490,14 @@ int main(int argc, char** argv) {
         printf("Error: could not seed the Notification Class recipient (Crimson).\n");
         return 1;
     }
-    // Note: unlike B-AAC (AE-CRL-B), Recipient_List is NOT made writable here -
-    // B-EM has no writable property anywhere.
+    // Recipient_List is WRITABLE (as in B-AAC): the seed above is only the default.
+    // Clause 12.21 fixes the default (one local-broadcast entry, Process
+    // Identifier 0) only for a Recipient_List that is NOT writable.
+    if (!BACnetStack_SetPropertyWritable(g_deviceInstance, OBJECT_TYPE_NOTIFICATION_CLASS,
+                                         NOTIFICATION_CLASS_INSTANCE, PROPERTY_IDENTIFIER_RECIPIENT_LIST, true)) {
+        printf("Error: could not make Notification Class 1 (Crimson) Recipient_List writable.\n");
+        return 1;
+    }
 
     // TEST ONLY: a second, CONFIRMED recipient for the Wire Tests' operator
     // workstation - see TEST_EVENT_RECIPIENT_PORT_VARIABLE above. Off unless set.
@@ -1523,9 +1572,9 @@ int main(int argc, char** argv) {
     // series does.
     CASExampleHelper::SendIAm(g_deviceInstance);
 
-    printf("FYI: Device %u (\"%s\") ready. Vendor ID %u. Read-only monitor - no "
-           "WriteProperty of any kind is accepted. Press 'h' for help.\n",
-           g_deviceInstance, DEVICE_NAME, VENDOR_IDENTIFIER);
+    printf("FYI: Device %u (\"%s\") ready. Vendor ID %u. Read-only monitor - the only "
+           "write accepted is Notification Class 1's Recipient_List. Press 'h' for help.\n",
+           g_deviceInstance, g_deviceName, VENDOR_IDENTIFIER);
 
     // --- Run the stack ------------------------------------------------------
     std::chrono::steady_clock::time_point lastCarTick = std::chrono::steady_clock::now();

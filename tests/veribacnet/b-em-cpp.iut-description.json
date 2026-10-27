@@ -1,0 +1,427 @@
+{
+  "capabilities": {
+    "maxApduLength": 1476,
+    "maxSegmentsAccepted": 16,
+    "objectTypesSupported": [
+      "analogInput",
+      "binaryInput",
+      "device",
+      "multiStateInput",
+      "notificationClass",
+      "positiveIntegerValue",
+      "networkPort",
+      "elevatorGroup",
+      "escalator",
+      "lift"
+    ],
+    "segmentation": "both",
+    "servicesExecuted": [
+      "readProperty",
+      "readPropertyMultiple",
+      "writeProperty",
+      "subscribeCov",
+      "subscribeCovPropertyMultiple",
+      "acknowledgeAlarm",
+      "getEventInformation",
+      "deviceCommunicationControl",
+      "whoHas",
+      "whoIs"
+    ],
+    "servicesSupported": [
+      "readProperty",
+      "readPropertyMultiple",
+      "writeProperty",
+      "subscribeCov",
+      "subscribeCovPropertyMultiple",
+      "acknowledgeAlarm",
+      "getEventInformation",
+      "confirmedCovNotification",
+      "unconfirmedCovNotification",
+      "confirmedCovNotificationMultiple",
+      "unconfirmedCovNotificationMultiple",
+      "confirmedEventNotification",
+      "unconfirmedEventNotification",
+      "deviceCommunicationControl",
+      "iAm",
+      "iHave",
+      "whoHas",
+      "whoIs"
+    ]
+  },
+  "conflicts": [],
+  "declared": {
+    "bibbs": [
+      "DS-RP-B",
+      "DS-RPM-B",
+      "DS-COV-B",
+      "DS-COVM-B",
+      "AE-N-I-B",
+      "AE-ACK-B",
+      "AE-INFO-B",
+      "DM-DCC-B",
+      "DM-DDB-B",
+      "DM-DOB-B"
+    ],
+    "options": {
+      "3.17::Supports writable Recipient_List property": "Notification Class 1 Recipient_List is registered writable (main.cpp BACnetStack_SetPropertyWritable); tests/recipient_list_test.py writes it.",
+      "4.10::Supports COV for Analog Input objects": "README and PICS: Analog Input 1 (Bronze) accepts SubscribeCOV; the up/down keys change it; COV_Increment 1.0.",
+      "4.26::Supports COVM for BitString property values": "Analog Input 1 Status_Flags (BitString) is subscribable.",
+      "4.26::Supports COVM for Enumerated property values": "Lift 1 Car_Moving_Direction (Enumerated) is subscribable.",
+      "4.26::Supports COVM for REAL property values": "Analog Input 1 Present_Value (REAL) is subscribable.",
+      "4.26::Supports COVM for Unsigned property values": "Lift 1 Car_Position (Unsigned) is subscribable; the Wire Test car_monitor_test follows it.",
+      "4.26::Supports COVM for non-array property": "Analog Input 1 Present_Value / Status_Flags and Lift 1 Car_Position / Car_Moving_Direction are SetPropertySubscribable.",
+      "5.2::Implements intrinsic alarming": "Lift 1 reports intrinsically through Notification Class 1 (SetAlarmsAndEventsForObjectEnabled).",
+      "5.2::Implements the CHANGE_OF_RELIABILITY - FAULT_LISTED algorithm": "Lift 1 Fault_Signals, SetFaultListedAlgorithm (cl. 12.59).",
+      "5.2::Implements the CHANGE_OF_STATE algorithm": "Lift 1 Passenger_Alarm, SetIntrinsicChangeOfStateAlgorithmBool (cl. 12.59).",
+      "5.2::Supports AE-ACK-B": "PICS claims AE-ACK-B.",
+      "5.8::Supports AE-ACK-B": "PICS claims AE-ACK-B.",
+      "8.14::Supports receiving a DeviceCommunicationControl service request with an indefinite duration": "The DeviceCommunicationControl callback accepts a request with no Time_Duration (useTimeDuration false); the stack runs the state machine."
+    },
+    "source": "operator"
+  },
+  "discovered": {
+    "capturedAt": "2026-10-22T02:16:00.501Z",
+    "readDeviceProperties": {
+      "applicationSoftwareVersion": "1.3.0",
+      "firmwareRevision": "6.0.23.0",
+      "modelName": "CAS BACnet Stack Example - B-EM",
+      "objectName": "Chipkin Example B-EM",
+      "protocolRevision": 30,
+      "protocolVersion": 1,
+      "vendorId": 389,
+      "vendorName": "Chipkin Automation Systems"
+    },
+    "whoIsResults": [
+      {
+        "deviceInstance": 389015,
+        "maxApdu": 1476,
+        "segmentation": "both",
+        "vendorId": 389
+      }
+    ]
+  },
+  "identity": {
+    "applicationSoftwareVersion": "1.3.0",
+    "deviceInstance": 389015,
+    "firmwareRevision": "6.0.23.0",
+    "modelName": "CAS BACnet Stack Example - B-EM",
+    "objectName": "Chipkin Example B-EM",
+    "protocolRevision": 30,
+    "protocolVersion": 1,
+    "vendorId": 389,
+    "vendorName": "Chipkin Automation Systems"
+  },
+  "network": {
+    "address": {
+      "ip": "127.0.0.1",
+      "port": 47832
+    },
+    "transport": "bacnetIp"
+  },
+  "objects": [
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "analogInput"
+      },
+      "objectName": "Bronze",
+      "properties": {
+        "covIncrement": {
+          "tag": "real",
+          "value": 1
+        },
+        "outOfService": {
+          "tag": "boolean",
+          "value": false
+        },
+        "units": {
+          "name": "degreesCelsius",
+          "tag": "enumerated",
+          "value": 62
+        }
+      }
+    },
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "binaryInput"
+      },
+      "objectName": "Emerald",
+      "properties": {
+        "outOfService": {
+          "tag": "boolean",
+          "value": false
+        },
+        "polarity": {
+          "name": "normal",
+          "tag": "enumerated",
+          "value": 0
+        }
+      }
+    },
+    {
+      "objectIdentifier": {
+        "instance": 389015,
+        "type": "device"
+      },
+      "objectName": "Chipkin Example B-EM",
+      "properties": {
+        "databaseRevision": {
+          "tag": "unsignedInt",
+          "value": 10
+        },
+        "maxApduLengthAccepted": {
+          "tag": "unsignedInt",
+          "value": 1476
+        },
+        "protocolRevision": {
+          "tag": "unsignedInt",
+          "value": 30
+        },
+        "protocolVersion": {
+          "tag": "unsignedInt",
+          "value": 1
+        },
+        "vendorIdentifier": {
+          "tag": "unsignedInt",
+          "value": 389
+        }
+      }
+    },
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "multiStateInput"
+      },
+      "objectName": "Hot Pink",
+      "properties": {
+        "numberOfStates": {
+          "tag": "unsignedInt",
+          "value": 3
+        },
+        "outOfService": {
+          "tag": "boolean",
+          "value": false
+        },
+        "stateText": {
+          "tag": "constructed",
+          "value": [
+            {
+              "tag": "characterString",
+              "value": "On"
+            },
+            {
+              "tag": "characterString",
+              "value": "Off"
+            },
+            {
+              "tag": "characterString",
+              "value": "Auto"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "notificationClass"
+      },
+      "objectName": "Crimson",
+      "properties": {},
+      "writable": true
+    },
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "positiveIntegerValue"
+      },
+      "objectName": "Turquoise",
+      "properties": {
+        "units": {
+          "name": "noUnits",
+          "tag": "enumerated",
+          "value": 95
+        }
+      }
+    },
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "networkPort"
+      },
+      "objectName": "Vermilion",
+      "properties": {
+        "apduLength": {
+          "tag": "unsignedInt",
+          "value": 1476
+        },
+        "networkType": {
+          "name": "ipv4",
+          "tag": "enumerated",
+          "value": 5
+        },
+        "outOfService": {
+          "tag": "boolean",
+          "value": false
+        },
+        "protocolLevel": {
+          "name": "bacnetApplication",
+          "tag": "enumerated",
+          "value": 2
+        }
+      }
+    },
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "elevatorGroup"
+      },
+      "objectName": "Maroon",
+      "properties": {}
+    },
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "escalator"
+      },
+      "objectName": "Mint",
+      "properties": {
+        "outOfService": {
+          "tag": "boolean",
+          "value": false
+        }
+      }
+    },
+    {
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "lift"
+      },
+      "objectName": "Mauve",
+      "properties": {
+        "eventEnable": {
+          "tag": "bitString",
+          "value": [
+            true,
+            true,
+            true
+          ]
+        },
+        "notificationClass": {
+          "tag": "unsignedInt",
+          "value": 1
+        },
+        "notifyType": {
+          "name": "alarm",
+          "tag": "enumerated",
+          "value": 0
+        },
+        "outOfService": {
+          "tag": "boolean",
+          "value": false
+        }
+      }
+    }
+  ],
+  "provenance": {
+    "epicsHeader": {
+      "characterSetsSupported": "derived",
+      "dataLinkOptions": "derived",
+      "deviceProfile": "user-entered",
+      "productDescription": "user-entered",
+      "specialFunctionality": "derived"
+    },
+    "generatedAt": "2026-10-22T02:16:00.501Z",
+    "snapshotCapturedAt": "2026-10-22T02:16:00.501Z",
+    "testPoints": 0
+  },
+  "testDatabase": {
+    "commandableTestPoints": [],
+    "deviceConfigurationScenario": {
+      "notes": "The Device object is the only object whose identity can change, and only by start-up configuration: restart the example with --deviceID <n> or --deviceName <text>. The device executes WriteProperty only for Notification Class 1's Recipient_List; a write to the Device's Object_Name or Object_Identifier is refused (write-access-denied), so nothing about its identity changes over the network.",
+      "objectNameChangeMethod": "replaceConfiguration",
+      "safeAlternateObjectIdentifier": {
+        "instance": 389915,
+        "type": "device"
+      },
+      "safeAlternateObjectName": "Chipkin Example B-EM Alt"
+    },
+    "identityMutationTestPoints": [
+      {
+        "notes": "The Device object is the only object whose identity can change, and only by start-up configuration: restart the example with --deviceID <n> or --deviceName <text>. The device executes WriteProperty only for Notification Class 1's Recipient_List; a write to the Device's Object_Name or Object_Identifier is refused (write-access-denied), so nothing about its identity changes over the network.",
+        "objectIdentifier": {
+          "instance": 389015,
+          "type": "device"
+        },
+        "safeAlternateObjectIdentifier": {
+          "instance": 389915,
+          "type": "device"
+        },
+        "safeAlternateObjectName": "Chipkin Example B-EM Alt"
+      }
+    ],
+    "multiStateInputStateTextScenario": {
+      "initialSize": 3,
+      "numberOfStatesPropertyIdentifier": "numberOfStates",
+      "objectIdentifier": {
+        "instance": 1,
+        "type": "multiStateInput"
+      },
+      "stateTextPropertyIdentifier": "stateText"
+    },
+    "networkPort": {
+      "activeOne": {
+        "objectIdentifier": {
+          "instance": 1,
+          "type": "networkPort"
+        }
+      }
+    },
+    "objectDeletion": "none",
+    "passwords": {},
+    "rebootWindow": {
+      "activateChangesMs": 30000,
+      "coldstartMs": 60000,
+      "warmstartMs": 30000
+    },
+    "remoteWhoHasExecution": {
+      "allowedResponseNpdus": [
+        {
+          "destination": {
+            "dnet": 65535
+          }
+        },
+        {
+          "destination": {
+            "dnet": 99
+          }
+        },
+        {
+          "destination": {
+            "dadr": "01",
+            "dnet": 99
+          }
+        }
+      ],
+      "notes": [
+        "TD-side choice for the remote-network Who-Has / Who-Is rows (135.1 9.32.2.x, 9.33.2.x): remote network X = 99, source address Y = 01. The allowed response paths are the clause three: global broadcast, remote broadcast to X, the TD on X."
+      ],
+      "requestNpdu": {
+        "destination": {
+          "dnet": "globalBroadcast"
+        },
+        "source": {
+          "sadr": "01",
+          "snet": 99
+        }
+      }
+    },
+    "timeouts": {
+      "apdu": 3000,
+      "reply": 1000,
+      "segment": 1000
+    },
+    "writableTestPoints": []
+  }
+}

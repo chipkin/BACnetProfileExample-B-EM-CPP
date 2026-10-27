@@ -20,28 +20,28 @@
         "System_Status",
         "Max_APDU_Length_Accepted",
         "Segmentation_Supported",
-        "APDU_Timeout",
-        "Database_Revision"
+        "APDU_Timeout"
       ],
-      "note": "the device itself; the instance is configurable with --deviceID (default 389015). The stack rows are device-wide facts only the stack knows - the protocol version and revision it implements, the services and object types it was configured with, the live object list and address-binding table. The accepted rows are the stack's configured defaults for APDU limits, segmentation, system status and database revision; an application that answered them from its own constants could contradict the stack, so this example does not. The exception is Number_Of_APDU_Retries, served as 3 (the cl. 12.11.29 suggested default): this device sends ConfirmedEventNotifications, and the stack default 0 never resends one a recipient missed. APDU_Timeout stays at the stack's 10000 ms, cl. 12.11.28's default for a device that does not let it be modified",
+      "note": "the device itself; the instance is configurable with --deviceID and the Object_Name with --deviceName (both at start-up; the heading shows the defaults). The stack rows are device-wide facts only the stack knows - the protocol version and revision it implements, the services and object types it was configured with, the live object list and address-binding table, and Database_Revision, which the stack starts at 0 and increments for each object added at start-up: it reads 10 (the Device and the nine objects main.cpp adds) and stays 10, because nothing creates, deletes or renames an object afterwards (the car moving, the alarm button and the door fault change values, not the object database). The accepted rows are the stack's configured defaults for APDU limits, segmentation and system status; an application that answered them from its own constants could contradict the stack, so this example does not. The exception is Number_Of_APDU_Retries, served as 3 (the cl. 12.11.29 suggested default): this device sends ConfirmedEventNotifications, and the stack default 0 never resends one a recipient missed. APDU_Timeout stays at the stack's 10000 ms, cl. 12.11.28's default for a device that does not let it be modified",
       "stack": [
         "Object_List",
         "Protocol_Version",
         "Protocol_Revision",
         "Protocol_Services_Supported",
         "Protocol_Object_Types_Supported",
-        "Device_Address_Binding"
+        "Device_Address_Binding",
+        "Database_Revision"
       ]
     },
     {
       "type": "Analog Input",
       "instance": 1,
       "name": "Bronze",
-      "app": ["Present_Value", "Object_Name", "Units", "Out_Of_Service"],
-      "enabled": [],
+      "app": ["Present_Value", "Object_Name", "Units", "Out_Of_Service", "COV_Increment"],
+      "enabled": ["COV_Increment"],
       "writable": [],
       "accepted": ["Event_State"],
-      "note": "REAL, degrees Celsius; starts at 21.5. F-COVM: Present_Value AND Status_Flags are both marked subscribable (SetPropertySubscribable), so a SubscribeCOVPropertyMultiple naming both fires one multi-property notification when the up/down keys nudge this value"
+      "note": "REAL, degrees Celsius; starts at 21.5. F-COVM: Present_Value AND Status_Flags are both marked subscribable (SetPropertySubscribable), so a SubscribeCOVPropertyMultiple naming both fires one multi-property notification when the up/down keys nudge this value. COV_Increment 1.0 (required: the object supports COV reporting, cl. 12.2 footnote 2)"
     },
     {
       "type": "Binary Input",
@@ -81,7 +81,7 @@
       "enabled": [],
       "writable": [],
       "accepted": ["Machine_Room_ID", "Group_ID", "Group_Members"],
-      "note": "F-ELEVATOR (canonical). Machine_Room_ID, Group_ID and Group_Members are NOT stack DEFAULTS - they are genuinely stored and served by BACnetStack_AddElevatorGroupObject (Group_Members is also maintained by BACnetStack_AddLiftOrEscalatorObject as Lift 1/Mauve is added to this group). They are marked accepted only because property-profile-reference.md's generic per-type table does not know about this object-specific host-configuration API and so cannot credit them as stack-served. isGroupOfLifts=true (enables Group_Mode) and supportLandingCallStatus=false (it would also add Landing_Call_Control, which cl. 12.58.10 requires to be writable if present); Landing_Calls is enabled on its own with SetPropertyEnabled (see the Lift's note for how the four F-ELEVATOR list/sequence callbacks are exercised) but property-profile-reference.md's generic Elevator Group table does not mark either 'required', so neither generates a checked row here - Group_Mode is served by GetPropertyEnumerated (normal) and Landing_Calls by GetListElevatorGroupLandingCallStatus (no calls outstanding: the callback returns false on its first call, the empty-list answer) regardless"
+      "note": "F-ELEVATOR (canonical). Machine_Room_ID, Group_ID and Group_Members are NOT stack DEFAULTS - they are genuinely stored and served by BACnetStack_AddElevatorGroupObject (Group_Members is also maintained by BACnetStack_AddLiftOrEscalatorObject as Lift 1/Mauve is added to this group). They are marked accepted only because the stack's generic per-type property profile does not know about this object-specific host-configuration API and so cannot credit them as stack-served. isGroupOfLifts=true (enables Group_Mode) and supportLandingCallStatus=false (it would also add Landing_Call_Control, which cl. 12.58.10 requires to be writable if present); Landing_Calls is enabled on its own with SetPropertyEnabled (see the Lift's note for how the four F-ELEVATOR list/sequence callbacks are exercised) but the stack's generic Elevator Group property profile does not mark either 'required', so neither generates a checked row here - Group_Mode is served by GetPropertyEnumerated (normal) and Landing_Calls by GetListElevatorGroupLandingCallStatus (no calls outstanding: the callback returns false on its first call, the empty-list answer) regardless"
     },
     {
       "type": "Lift",
@@ -92,7 +92,7 @@
       "writable": [],
       "stack": ["Reliability"],
       "accepted": ["Status_Flags", "Elevator_Group", "Group_ID", "Installation_ID"],
-      "note": "F-ELEVATOR (canonical). The Lift presents the car SIMULATION (simulation/ElevatorCar.cpp; README 'What is Simulation'): Car_Position and Car_Moving_Direction via GetPropertyUnsignedInteger/GetPropertyEnumerated, Car_Door_Status (one door, index 1) via GetPropertyEnumerated with useArrayIndex - SAFETY_LOCKED while the car moves, OPENING/OPENED/CLOSING/CLOSED at a stop - Passenger_Alarm and Out_Of_Service via GetPropertyBool, and Fault_Signals (the car's active BACnetLiftFaults: DOOR_CLOSING_FAULT when a door fails to close) via GetListOfEnumerations. Every change goes to the stack with BACnetStack_UpdateValue. property-profile-reference.md's generated Lift table is INCOMPLETE relative to CASBACnetStackDLL.h's doc comment for BACnetStack_AddLiftOrEscalatorObject (a documentation gap in the stack repo, not a stack API gap): it omits those six required properties; this example serves them because clause 12.59 requires them. Status_Flags, Elevator_Group, Group_ID and Installation_ID ARE in the generic table (stack-computed/stack-stored) and are accepted for the same reason as Maroon's. Event reporting, both algorithms clause 12.59 names: CHANGE_OF_STATE on Passenger_Alarm (pAlarmValues TRUE; the 's' key or the test-only control channel presses the button) and FAULT_LISTED on Fault_Signals, both to Notification Class 1 (Crimson). Reliability is enabled for the fault algorithm and computed by the stack from it (NO_FAULT_DETECTED / FAULTS_LISTED); the app does not serve it. Car_Position, Car_Moving_Direction and Car_Door_Status are SetPropertySubscribable (DS-COVM-B on the car). Optional Assigned_Landing_Calls (always empty: a B-EM's group takes no landing calls), Registered_Car_Call (the car's pending stops) and Landing_Door_Status (floors 1-8: the car's floor follows the car door, the others SAFETY_LOCKED) are enabled and served by the F-ELEVATOR sequence callbacks"
+      "note": "F-ELEVATOR (canonical). The Lift presents the car SIMULATION (simulation/ElevatorCar.cpp; README 'What is Simulation'): Car_Position and Car_Moving_Direction via GetPropertyUnsignedInteger/GetPropertyEnumerated, Car_Door_Status (one door, index 1) via GetPropertyEnumerated with useArrayIndex - SAFETY_LOCKED while the car moves, OPENING/OPENED/CLOSING/CLOSED at a stop - Passenger_Alarm and Out_Of_Service via GetPropertyBool, and Fault_Signals (the car's active BACnetLiftFaults: DOOR_CLOSING_FAULT when a door fails to close) via GetListOfEnumerations. Every change goes to the stack with BACnetStack_UpdateValue. The stack's Lift property profile lists those six required properties (with no default: the application must serve them), so the table below shows them; this example serves them because clause 12.59 requires them. Status_Flags, Elevator_Group, Group_ID and Installation_ID ARE in the generic table (stack-computed/stack-stored) and are accepted for the same reason as Maroon's. Event reporting, both algorithms clause 12.59 names: CHANGE_OF_STATE on Passenger_Alarm (pAlarmValues TRUE; the 's' key or the test-only control channel presses the button) and FAULT_LISTED on Fault_Signals, both to Notification Class 1 (Crimson). Reliability is enabled for the fault algorithm and computed by the stack from it (NO_FAULT_DETECTED / FAULTS_LISTED); the app does not serve it. Car_Position, Car_Moving_Direction and Car_Door_Status are SetPropertySubscribable (DS-COVM-B on the car). Optional Assigned_Landing_Calls (always empty: a B-EM's group takes no landing calls), Registered_Car_Call (the car's pending stops) and Landing_Door_Status (floors 1-8: the car's floor follows the car door, the others SAFETY_LOCKED) are enabled and served by the F-ELEVATOR sequence callbacks"
     },
     {
       "type": "Escalator",
@@ -120,9 +120,9 @@
       "name": "Crimson",
       "app": ["Object_Name"],
       "enabled": [],
-      "writable": [],
+      "writable": ["Recipient_List"],
       "accepted": ["Priority", "Ack_Required", "Recipient_List"],
-      "note": "AE-N-I-B / AE-ACK-B / AE-INFO-B. Priority, Ack_Required and Recipient_List are NOT stack DEFAULTS - they are genuinely populated by BACnetStack_AddNotificationClassObject (Priority, Ack_Required) and BACnetStack_AddRecipientToNotificationClass (Recipient_List) at start-up; marked accepted only because property-profile-reference.md's generic per-type table does not know about this object-specific host-configuration API. Unlike B-AAC (AE-CRL-B), Recipient_List is NOT made writable here - this profile has no AE-CRL-B requirement and B-EM accepts no WriteProperty of any kind"
+      "note": "AE-N-I-B / AE-ACK-B / AE-INFO-B. Priority, Ack_Required and Recipient_List are NOT stack DEFAULTS - they are genuinely populated by BACnetStack_AddNotificationClassObject (Priority, Ack_Required) and BACnetStack_AddRecipientToNotificationClass (Recipient_List) at start-up; marked accepted only because the stack's generic per-type property profile does not know about this object-specific host-configuration API. Recipient_List is registered writable (BACnetStack_SetPropertyWritable), the one writable property of this device, so a commissioning tool chooses who hears the alarms; the stack decodes and stores the write itself. The start-up entry (local subnet broadcast, unconfirmed) is only the default: clause 12.21 fixes the default only for a list that is not writable"
     }
   ]
 }

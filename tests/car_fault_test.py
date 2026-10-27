@@ -3,7 +3,7 @@
 # Public-domain example code (CC0) - see ../LICENSE.
 """B-EM Wire Test - Failure Mode: a car door that fails to close, reported as a lift fault.
 
-    python3 tests/car_fault_test.py [--exe build/BACnetExampleBEM] [--port 48030]
+    python3 tests/car_fault_test.py [--exe build/BACnetExampleBEM] [--port 47832]
 
 ANSI/ASHRAE 135-2024 cl. 12.59.32 Fault_Signals: "DOOR_CLOSING_FAULT  A door is failing to
 close"; "This property is the value of the pMonitoredList parameter for the object's fault

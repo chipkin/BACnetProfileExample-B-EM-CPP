@@ -1,0 +1,225 @@
+{
+  "bibbs": [
+    {
+      "enabled": true,
+      "id": "DS-RP-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "DS-RPM-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "DS-COV-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "DS-COVM-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "AE-N-I-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "AE-ACK-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "AE-INFO-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "DM-DDB-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "DM-DOB-B",
+      "provenance": "user-entered"
+    },
+    {
+      "enabled": true,
+      "id": "DM-DCC-B",
+      "provenance": "user-entered"
+    }
+  ],
+  "epicsHeader": {
+    "characterSetsSupported": {
+      "provenance": "derived",
+      "value": "ISO 10646 (UTF-8) / ANSI X3.4"
+    },
+    "dataLinkOptions": {
+      "provenance": "derived",
+      "value": "BACnet IP, (Annex J)"
+    },
+    "deviceProfile": {
+      "provenance": "user-entered",
+      "value": "B-EM - BACnet Elevator Monitor"
+    },
+    "productDescription": {
+      "provenance": "user-entered",
+      "value": "A read-only BACnet/IP monitor for an elevator installation, built on the CAS BACnet Stack. It presents the series' three base sensor objects plus an Elevator Group / Lift / Escalator object family; the Lift follows a simulated lift car as it moves floor to floor. It answers ReadProperty and ReadPropertyMultiple, supports SubscribeCOV and SubscribeCOVPropertyMultiple (including the car's Car_Position, Car_Moving_Direction and Car_Door_Status), generates intrinsic event notifications (CHANGE_OF_STATE on the Lift's Passenger_Alarm, FAULT_LISTED on its Fault_Signals), accepts AcknowledgeAlarm, answers GetEventInformation, and handles DeviceCommunicationControl. It accepts WriteProperty only for Notification Class 1's Recipient_List (commissioning the alarm recipients), and no WritePropertyMultiple, Schedule, ReinitializeDevice or TimeSynchronization. It is a tutorial for implementers of the B-EM profile."
+    },
+    "productName": {
+      "provenance": "user-entered",
+      "value": "CAS BACnet Stack Example - B-EM"
+    },
+    "specialFunctionality": {
+      "provenance": "derived",
+      "value": "none"
+    }
+  },
+  "identityMutations": [
+    {
+      "included": true,
+      "notes": "The Device object is the only object whose identity can change, and only by start-up configuration: restart the example with --deviceID <n> or --deviceName <text>. The device executes WriteProperty only for Notification Class 1's Recipient_List; a write to the Device's Object_Name or Object_Identifier is refused (write-access-denied), so nothing about its identity changes over the network.",
+      "objectIdentifier": {
+        "instance": 389015,
+        "type": "device"
+      },
+      "provenance": "user-entered",
+      "safeAlternateObjectIdentifier": {
+        "instance": 389915,
+        "type": "device"
+      },
+      "safeAlternateObjectName": "Chipkin Example B-EM Alt"
+    }
+  ],
+  "infra": {
+    "dccPassword": {
+      "provenance": "user-entered",
+      "value": ""
+    },
+    "failTimes": {
+      "provenance": "derived",
+      "value": [
+        [
+          "Notification Fail Time",
+          60
+        ],
+        [
+          "Internal Processing Fail Time",
+          2
+        ],
+        [
+          "Minimum ON/OFF Time",
+          2
+        ],
+        [
+          "Schedule Evaluation Fail Time",
+          2
+        ],
+        [
+          "External Command Fail Time",
+          5
+        ],
+        [
+          "Program Object State Change Fail Time",
+          5
+        ],
+        [
+          "Acknowledgement Fail Time",
+          2
+        ],
+        [
+          "Slave Proxy Confirm Interval",
+          6
+        ],
+        [
+          "Unconfirmed Response Fail Time",
+          4
+        ],
+        [
+          "Activate Changes Fail Time",
+          30
+        ],
+        [
+          "Auto Negotiation Fail Time",
+          15
+        ],
+        [
+          "Foreign Device Registration Fail Time",
+          10
+        ],
+        [
+          "Channel Write Fail Time",
+          30
+        ]
+      ]
+    },
+    "networkPortInstance": {
+      "provenance": "captured",
+      "value": 1
+    },
+    "rebootWindow": {
+      "provenance": "derived",
+      "value": {
+        "activateChangesMs": 30000,
+        "coldstartMs": 60000,
+        "warmstartMs": 30000
+      }
+    },
+    "reinitializePassword": {
+      "provenance": "user-entered",
+      "value": ""
+    },
+    "timeouts": {
+      "provenance": "derived",
+      "value": {
+        "apdu": 3000,
+        "reply": 1000,
+        "segment": 1000
+      }
+    },
+    "valueRestrictions": {
+      "provenance": "derived",
+      "value": [
+        {
+          "datatype": "unsigned-integer",
+          "kind": "range",
+          "max": 65535,
+          "min": 0
+        },
+        {
+          "datatype": "signed-integer",
+          "kind": "range",
+          "max": 2147483647,
+          "min": -2147483648
+        },
+        {
+          "datatype": "real",
+          "kind": "range",
+          "max": 3.4e+38,
+          "min": -3.4e+38,
+          "resolution": 0.01
+        },
+        {
+          "datatype": "character-string",
+          "kind": "length",
+          "max": 64
+        },
+        {
+          "datatype": "octet-string",
+          "kind": "length",
+          "max": 256
+        },
+        {
+          "datatype": "list",
+          "kind": "length",
+          "max": 10
+        }
+      ]
+    }
+  },
+  "snapshotCapturedAt": "2026-10-22T02:16:00.501Z",
+  "testPoints": [],
+  "updatedAt": "2026-10-22T02:16:10.936Z"
+}

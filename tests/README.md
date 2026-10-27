@@ -21,7 +21,7 @@ python3 tests/run_wire_tests.py --exe build/BACnetExampleBEM
 
 On Windows, `--exe build\Release\BACnetExampleBEM.exe` (or the
 `build\static` tree). It ends with `ALL WIRE TESTS PASSED` (exit 0) or the
-scripts that failed, in about a minute. `--port` (default 48030) is the UDP
+scripts that failed, in about a minute. `--port` (default 47832) is the UDP
 port the test starts the device on; `--port + 1` is the Simulation's control
 channel. CI (`.github/workflows/release.yml`) runs it on Linux after the smoke
 test.
@@ -103,6 +103,23 @@ subscriber's socket, so a stalled test process misses none of them.
    WriteProperty to `Car_Position`, `Passenger_Alarm` and `Out_Of_Service` is
    refused (a B-EM accepts no modifications); `Car_Position` is unchanged.
 
+## `recipient_list_test.py` - commissioning the alarm recipients
+
+Clause 12.21 fixes a `Recipient_List`'s default only when it is not writable;
+this one is - the one property a B-EM here accepts a write to. The example
+starts without the test-only recipient.
+
+1. **Control**: `Recipient_List` reads the start-up default, which does not name
+   the workstation.
+2. The workstation writes the default plus itself (confirmed, Process
+   Identifier 2): SimpleACK, and it reads back exactly as written.
+3. The alarm button: **ConfirmedEventNotification NORMAL -> OFFNORMAL** reaches
+   the written recipient; released: OFFNORMAL -> NORMAL.
+4. The default is written back and reads back as at start-up; the next alarm
+   does not reach the workstation (control).
+5. **Failure Modes**: a `Recipient_List` write with the wrong datatype is refused
+   and changes nothing.
+
 ## `discovery_test.py` - every listed property reads as a value
 
 The same walk as B-SS-CPP's discovery test; only the expected-object list
@@ -123,6 +140,34 @@ differs.
    `FD_Subscription_Lifetime` (419) are each listed and read as a value - the
    three reads Chipkin BACnet Explorer found failing on B-SS at stack 6.0.21
    (B-SS-CPP #20-#22); every example has the same stack Network Port.
+5. Device **`Database_Revision`** reads 10: the stack adds one per object added
+   at start-up (cl. 12.11), and nothing changes the object database afterwards.
+
+## `configuration_test.py` - the Device's identity is configurable
+
+BACnet requires the Device's Object_Identifier and Object_Name to be
+configurable (135-2024 cl. 12.1.1.3, 12.1.1.4); Object_Name must be unique
+across the internetwork, so two units cannot share a compile-time name. The
+monitor is started three ways, and its help is checked:
+
+1. **No options (control):** Device 389015 answers Who-Is, and its
+   `Object_Name` is the default `Chipkin Example B-EM`.
+2. **`--deviceID 389915 --deviceName "Chipkin Example B-EM Unit 2"`:** the
+   device answers Who-Is as 389915; `Object_Name` reads the configured name;
+   a read of Device 389015 gets Error OBJECT / UNKNOWN_OBJECT (1/31); the
+   ready line names the configured device; a Who-Has by the configured name
+   gets an I-Have from Device 389915 with that name (DM-DOB-B).
+3. **Boundaries:** an empty name and a 256-byte name each print a warning and
+   keep the default; a 255-byte name (the limit) reads back whole.
+4. **The command line:** `--help` lists `--port`, `--deviceID`, `--deviceName`
+   and `--xml`, and not `--dcc-password` (the DeviceCommunicationControl
+   password is set in `main.cpp`, not on the command line); with `--xml` the
+   console shows each frame as an XML block.
+
+Against the binary from before `--deviceName` (2026-10-23, Windows) it fails 6
+of 12 checks (the configured name, the ready line, the Who-Has, both warnings,
+the 255-byte name); against the binary before `--xml` and the help fix, 2 of 18
+(the help lists `--dcc-password`; no XML).
 
 ## What it found
 

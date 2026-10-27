@@ -3,7 +3,7 @@
 # Public-domain example code (CC0) - see ../LICENSE.
 """B-EM Wire Test - the passenger alarm: reported, listed, acknowledged; and what a monitor refuses.
 
-    python3 tests/passenger_alarm_test.py [--exe build/BACnetExampleBEM] [--port 48030]
+    python3 tests/passenger_alarm_test.py [--exe build/BACnetExampleBEM] [--port 47832]
 
 ANSI/ASHRAE 135-2024 cl. 12.59: "Lift objects that support intrinsic reporting shall apply
 the CHANGE_OF_STATE event algorithm on the Passenger_Alarm property. The pAlarmValues

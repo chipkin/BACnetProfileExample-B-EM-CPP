@@ -65,14 +65,15 @@ commands above.
 ## Run
 
 ```bash
-./build/BACnetExampleBEM [--port 47808] [--deviceID 389015]   # Linux/macOS
-.\build\Release\BACnetExampleBEM.exe [--port 47808] [--deviceID 389015]   # Windows
+./build/BACnetExampleBEM [--port 47808] [--deviceID 389015] [--deviceName "Chipkin Example B-EM"]   # Linux/macOS
+.\build\Release\BACnetExampleBEM.exe [--port 47808] [--deviceID 389015] [--deviceName "Chipkin Example B-EM"]   # Windows
 ```
 
 Interactive keys while running: `h` help, `q` quit, up/down nudge Analog Input
 1 (Bronze) - also the F-COVM demonstration (watch a SubscribeCOVPropertyMultiple
 subscription on Present_Value + Status_Flags fire together). There is no key
-that changes BACnet state: this device has no writable property. `s` is the
+that changes BACnet state: the one writable property, Notification Class 1's
+`Recipient_List`, is written over BACnet. `s` is the
 Simulation's passenger alarm button. The lift car is Simulation
 (`simulation/`); the Wire Tests drive it through the test-only control channel
 (`BEM_SIMULATION_CONTROL_PORT`) and add a confirmed event recipient with
@@ -103,13 +104,12 @@ if you touch them.
   **Never register `RegisterCallbackSetElevatorGroupLandingCallControl`** in
   this repository - that is the write-side callback and would contradict
   "read-only, unconditionally" above.
-- `docs/property-profile-reference.md`'s generated Lift table is **incomplete**
-  relative to the required properties documented in
-  `CASBACnetStackDLL.h`'s own comment above
-  `BACnetStack_AddLiftOrEscalatorObject` (a documentation gap in the stack
-  repo). Trust the DLL header's doc comment for what a Lift/Escalator actually
-  requires, not the generated markdown table; `docs/objects.json`'s notes
-  record exactly which properties this affects.
+- The stack's Lift property profile lists the six required Lift properties
+  this example serves (Car_Position, Car_Moving_Direction, Car_Door_Status,
+  Passenger_Alarm, Out_Of_Service, Fault_Signals) with no default: the
+  application must serve them. `CASBACnetStackDLL.h`'s own comment above
+  `BACnetStack_AddLiftOrEscalatorObject` says the same; `docs/objects.json`'s
+  notes record who serves each.
 - F-COVM: `BACnetStack_SetPropertySubscribable` on more than one property of
   the same object (here, Analog Input 1's `Present_Value` AND `Status_Flags`)
   plus `BACnetStack_SetCOVMultipleSettings` for the SubscribeCOVPropertyMultiple
@@ -165,7 +165,8 @@ after any change. Beyond them, verification is behavioural:
    (the car followed over COV and RPM).
 7. **Alarming**: `tests/car_fault_test.py` (the FAULT_LISTED door fault) and
    `tests/passenger_alarm_test.py` (CHANGE_OF_STATE, AcknowledgeAlarm,
-   GetEventInformation); by hand, press `s`.
+   GetEventInformation), `tests/recipient_list_test.py` (the writable
+   Recipient_List); by hand, press `s`.
 8. **Device management**: DCC `disable-initiation`/`enable` SimpleACKs; a wrong
    password (if set) is rejected.
 9. If you changed the objects or their properties, regenerate `docs/PICS.md`

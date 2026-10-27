@@ -3,7 +3,7 @@
 # Public-domain example code (CC0) - see ../LICENSE.
 """B-EM discovery: read every property the elevator monitor says it has, the way a client does.
 
-    python3 tests/discovery_test.py [--exe build/BACnetExampleBEM] [--port 48030]
+    python3 tests/discovery_test.py [--exe build/BACnetExampleBEM] [--port 47832]
 
 What a BACnet client such as Chipkin BACnet Explorer does when it discovers a device,
 done over the wire from outside the example:
@@ -51,6 +51,17 @@ EXPECTED_OBJECTS = [DEVICE,
                     (15, 1),                                         # "Crimson" - Notification Class object type: 15
                     ]
 
+# Database_Revision (cl. 12.11): the stack starts it at 0 and adds 1 for each object the
+# example adds at start-up - the Device and the nine objects above - and nothing creates,
+# deletes or renames an object afterwards, so it reads 10 for the life of the process
+# (docs/PICS.md).
+PROPERTY_DATABASE_REVISION = 155
+EXPECTED_DATABASE_REVISION = len(EXPECTED_OBJECTS)
+
+# Analog Input 1's COV_Increment (cl. 12.2.16), as main.cpp serves it.
+PROPERTY_COV_INCREMENT = 22
+EXPECTED_COV_INCREMENT = 1.0
+
 # The four properties cl. 12.1.1.4.1 says Property_List does not contain.
 PROPERTY_OBJECT_TYPE = 79
 NOT_IN_PROPERTY_LIST = [wiretest.PROPERTY_OBJECT_IDENTIFIER, wiretest.PROPERTY_OBJECT_NAME,
@@ -82,8 +93,8 @@ def parser():
     arguments = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     arguments.add_argument("--exe", default=str(wiretest.default_exe(REPOSITORY, "BACnetExampleBEM")),
                            help="path to BACnetExampleBEM (default: build/BACnetExampleBEM)")
-    arguments.add_argument("--port", type=int, default=48030,
-                           help="the elevator monitor's UDP port (default 48030)")
+    arguments.add_argument("--port", type=int, default=47832,
+                           help="the elevator monitor's UDP port (default 47832)")
     return arguments
 
 
@@ -174,6 +185,20 @@ def main():
             record(f"Network Port 1 {name} ({property_identifier}): listed in Property_List and reads as a value "
                    f"(issue {issue})", listed and failure is None,
                    "not in Property_List" if not listed else (failure or ""))
+
+        # Analog Input 1 supports COV reporting (DS-COV-B), so cl. 12.2 footnote 2 requires
+        # its COV_Increment: listed in Property_List, and reads main.cpp's 1.0.
+        analog_input = (wiretest.OBJECT_TYPE_ANALOG_INPUT, 1)
+        cov_increment = client.read_property(args.port, *analog_input, PROPERTY_COV_INCREMENT, timeout=2.0)
+        record(f"Analog Input 1 COV_Increment ({PROPERTY_COV_INCREMENT}): listed in Property_List and reads "
+               f"{EXPECTED_COV_INCREMENT} (cl. 12.2 footnote 2: required where COV reporting is supported)",
+               PROPERTY_COV_INCREMENT in property_lists.get(analog_input, []) and is_value(cov_increment)
+               and cov_increment.value == EXPECTED_COV_INCREMENT, outcome(cov_increment))
+
+        database_revision = client.read_property(args.port, *DEVICE, PROPERTY_DATABASE_REVISION, timeout=2.0)
+        record(f"Device Database_Revision reads {EXPECTED_DATABASE_REVISION}, one per object added at start-up "
+               "(docs/PICS.md)", is_value(database_revision) and database_revision.value == EXPECTED_DATABASE_REVISION,
+               outcome(database_revision))
     finally:
         client.close()
         device.stop()

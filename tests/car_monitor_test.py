@@ -3,7 +3,7 @@
 # Public-domain example code (CC0) - see ../LICENSE.
 """B-EM Wire Test - the Profile Function: a monitoring workstation watches the lift car move.
 
-    python3 tests/car_monitor_test.py [--exe build/BACnetExampleBEM] [--port 48030]
+    python3 tests/car_monitor_test.py [--exe build/BACnetExampleBEM] [--port 47832]
 
 ANSI/ASHRAE 135-2024 L.13.3: the B-EM "performs monitoring of an elevator control system".
 The Peer is a Python operator workstation. It learns everything over BACnet: one

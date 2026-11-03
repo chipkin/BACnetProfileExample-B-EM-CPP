@@ -2,46 +2,25 @@
 
 Defects this example cannot fix itself. A defect that stops a Wire Test check is
 reported as a `[KNOWN GAP]` line ([`tests/`](tests/README.md)): reported on every
-run, not counted as a failure. **There are none at Stack Pin `6.x` @ `69b6249f`**
-- every check of the Profile Function and its Failure Modes passes.
+run, not counted as a failure. **There are none at Stack Pin `6.x` @ `1e7dffe2b`**
+- every check of the Profile Function and its Failure Modes passes (Wire Tests on
+Windows, 2026-11-01).
 
-## Observed in the stack, not affecting a check
+## Fixed in the stack at the pin
 
-### 1. `UpdateValue(Fault_Signals)` logs a CHANGE_OF_STATE error
+Both were observed here at earlier stack revisions; the fix for each is in the
+pinned revision (`1e7dffe2b`). Kept as a reference for support.
 
-Filed: [#3967](https://github.com/chipkin/cas-bacnet-stack/issues/3967). Verification found it is more than a log line: after a fault
-clears, CHANGE_OF_STATE is evaluated on the now-empty Fault_Signals list instead of
-Passenger_Alarm, so a Passenger_Alarm that stayed TRUE through the fault is not re-judged.
-
-
-- **What:** Lift 1 arms both CHANGE_OF_STATE (on `Passenger_Alarm`) and
-  FAULT_LISTED (on `Fault_Signals`), as cl. 12.59 describes. The
-  `BACnetStack_UpdateValue(..., Lift, 1, Fault_Signals)` that CLEARS a fault
-  (FAULT -> NORMAL; not the one that raises it) makes the stack's debug log print
-  `BACnetChangeOfStateEventAlgorithm::SetMonitoredValue() - Error: monitoredValue has invalid datatype=[255]`,
-  then `Run() - Error: failed to set the monitoredValue` and
-  `BACnetStackAlarmAndEventObject::CheckAndRunAlgorithms() - Error: error occurrend when running the event algorithm`:
-  on the way back from FAULT, the CHANGE_OF_STATE algorithm appears to be run
-  with the fault algorithm's monitored list (the property passed to
-  `UpdateValue`) as its monitored value.
-- **Effect here:** none seen. The FAULT_LISTED transitions, `Reliability`,
-  `Event_State` and both notifications are right (`tests/car_fault_test.py`), and
-  `Passenger_Alarm` still alarms afterwards. Not tested: a fault and a
-  passenger alarm at the same time.
-- **Evidence:** the example's console, Windows STATIC and Linux (WSL, SOURCE
-  build), 2026-10-16: `obstruct on` -> `Fault_Signals = { DOOR_CLOSING_FAULT }`
-  with no error; `obstruct off` -> the three error lines, then `Fault_Signals
-  cleared`. The source line is `BACnetChangeOfStateEventAlgorithm.cpp(225)` at
-  the pin.
-
-### 2. `SetPropertySubscribable` leaves `COV_Increment` absent
-
-Filed: `chipkin/cas-bacnet-stack#4602` (ref for support).
-
-Enabling COV on Analog Input 1 does not make the stack serve `COV_Increment`;
-cl. 12.2 requires it for an Analog Input that supports COV reporting. The
-example serves it itself (read-only, 1.0), so nothing is wrong on the wire; the
-note is here so nobody removes that workaround.
+- **After a car door fault cleared, a held Passenger_Alarm was not re-judged**
+  ([#3967](https://github.com/chipkin/cas-bacnet-stack/issues/3967), closed). The
+  `UpdateValue(..., Lift, 1, Fault_Signals)` that cleared a fault ran
+  CHANGE_OF_STATE on the empty `Fault_Signals` list instead of `Passenger_Alarm`
+  (debug log: `monitoredValue has invalid datatype=[255]`).
+- **`SetPropertySubscribable` left `COV_Increment` absent**
+  (`chipkin/cas-bacnet-stack#4602`, closed). The stack now enables it, reading
+  1.0, when `Present_Value` is made subscribable. This example still enables and
+  serves Analog Input 1's `COV_Increment` itself (read-only, 1.0), as cl. 12.2
+  requires for an Analog Input that supports COV reporting.
 
 ## Known limitations of this example
 
@@ -50,8 +29,6 @@ note is here so nobody removes that workaround.
   monitor; the list lives only in memory and returns to the standard default
   (local broadcast) when the example restarts (cl. 12.21.8). Whether it should
   be kept, or whether this monitor should stay write-free, is an open question.
-  (ref: `chipkin/chipkin-bacnet-testing-tool#684`)
 - **No writable REAL `Present_Value` exists**, so a test tool cannot drive a
-  point to exercise COV and range scenarios. (ref: `chipkin/chipkin-bacnet-testing-tool#172`)
-- **Operator-driven conformance rows stay manual** (AE-N-I-B, AE-ACK-B).
-  (ref: `chipkin/chipkin-bacnet-testing-tool#680`)
+  point to exercise COV and range scenarios.
+- **Operator-driven conformance tests stay manual** (AE-N-I-B, AE-ACK-B).

@@ -133,7 +133,7 @@ object-name: "Chipkin Example B-EM"
 object-type: DEVICE
 apdu-segment-timeout: 5000
 apdu-timeout: 10000
-application-software-version: "1.3.0"
+application-software-version: "1.3.1"
 description: "Chipkin CAS BACnet Stack example - B-EM (Elevator Monitor) profile. Read-only monitor: DS-RP/RPM-B, DS-COV-B, DS-COVM-B, intrinsic alarming (AE-N-I-B / AE-ACK-B / AE-INFO-B), DM-DCC-B. WriteProperty only for the alarm Recipient_List."
 device-address-binding: ?
 firmware-revision: "6.0.23.0"

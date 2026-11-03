@@ -18,7 +18,7 @@
     "vendorId": 389
   },
   "identity": {
-    "applicationSoftwareVersion": "1.3.0",
+    "applicationSoftwareVersion": "1.3.1",
     "firmwareRevision": "6.0.23.0",
     "modelName": "CAS BACnet Stack Example - B-EM",
     "objectName": "Chipkin Example B-EM",
@@ -244,7 +244,7 @@
           "status": "ok",
           "value": {
             "tag": "characterString",
-            "value": "1.3.0"
+            "value": "1.3.1"
           }
         },
         "databaseRevision": {

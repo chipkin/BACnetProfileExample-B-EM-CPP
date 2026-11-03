@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+## [1.3.1] - 2026-11-02
+
+Built on CAS BACnet Stack 6.x (`1e7dffe2b`).
+
+### Changed
+
+- **CAS BACnet Stack moved to 6.x `1e7dffe2b`.**
+- **Vendored `common/` updated to 3.6.1**; see `common/CHANGELOG.md`. At this
+  stack revision the example chooses the address of a broadcast the stack sends
+  without a destination address, such as the I-Am that answers a Who-Is. Such a
+  broadcast now also goes, as a unicast, to the last peer that sent from a UDP
+  port other than the example's own, so a client on the same computer but on
+  another port hears the answer. Only frames the stack addresses itself are
+  copied (network layer messages, I-Am and I-Have); event notifications are not.
+- **README**: the profile example table is the same in every example (each
+  blocked example names its open stack issue).
 
 ## [1.3.0] - 2026-10-27
 

@@ -148,7 +148,7 @@ using namespace CASBACnetStackExampleConstants;
 // 1. Example + device configuration
 // -----------------------------------------------------------------------------
 static const char* APP_NAME = "BACnet B-EM (Elevator Monitor) Example - C++";
-static const char* APP_VERSION = "1.3.0";
+static const char* APP_VERSION = "1.3.1";
 
 // The device instance. BACnet requires this to be configurable, so it defaults
 // to 389015 and can be overridden on the command line with --deviceID. Keep it
